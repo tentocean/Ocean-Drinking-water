@@ -1,6 +1,6 @@
 -- OCEAN Drinking Water — schema + RLS + seed data
--- Run this once in: Supabase Dashboard -> SQL Editor -> New query -> paste -> Run
--- Safe to re-run partially, but intended as a single first-time setup script.
+-- Run this in: Supabase Dashboard -> SQL Editor -> New query -> paste -> Run
+-- Safe to run more than once — tables/policies/seed rows won't duplicate.
 
 create extension if not exists pgcrypto;
 
@@ -91,6 +91,9 @@ language sql stable security definer set search_path = public as $$
   select exists(select 1 from profiles where id = auth.uid() and role = 'owner');
 $$;
 
+-- leftover from an earlier version of this script, no longer used
+drop function if exists my_employee_id();
+
 -- ============================================================
 -- ROW LEVEL SECURITY
 --
@@ -113,6 +116,27 @@ alter table customers enable row level security;
 alter table sales enable row level security;
 alter table expenses enable row level security;
 alter table factory_expenses enable row level security;
+
+-- Policies are dropped-then-created so this whole script can be re-run
+-- safely (Postgres has no CREATE POLICY IF NOT EXISTS). Covers both this
+-- version's policy names and an earlier version's, in case that ran first.
+drop policy if exists employees_select on employees;
+drop policy if exists employees_write on employees;
+drop policy if exists profiles_select on profiles;
+drop policy if exists customers_all on customers;
+drop policy if exists customers_select on customers;
+drop policy if exists customers_insert on customers;
+drop policy if exists customers_update on customers;
+drop policy if exists sales_all on sales;
+drop policy if exists sales_select on sales;
+drop policy if exists sales_insert on sales;
+drop policy if exists sales_update on sales;
+drop policy if exists sales_delete on sales;
+drop policy if exists expenses_all on expenses;
+drop policy if exists expenses_select on expenses;
+drop policy if exists expenses_insert on expenses;
+drop policy if exists expenses_delete on expenses;
+drop policy if exists factory_expenses_all on factory_expenses;
 
 -- employees: anyone can read (needed for the picker/dropdowns); only owner writes
 create policy employees_select on employees for select
@@ -145,6 +169,10 @@ insert into storage.buckets (id, name, public)
 values ('slips', 'slips', false)
 on conflict (id) do nothing;
 
+drop policy if exists slips_all on storage.objects;
+drop policy if exists slips_owner_all on storage.objects;
+drop policy if exists slips_employee_rw on storage.objects;
+
 -- Open like customers/sales/expenses above — no per-employee credential to scope by.
 create policy slips_all on storage.objects for all
   using (bucket_id = 'slips')
@@ -162,23 +190,30 @@ insert into employees (id, name, route, dot, sort_order) values
   ('e5', 'อื่นๆ',       'สายอื่นๆ',      '#64748b', 5)
 on conflict (id) do nothing;
 
-insert into customers (id, name, phone, address, employee_id) values
-  (gen_random_uuid(), 'ร้านอาหารครัวคุณแม่', '081-234-5678', 'ถ.สุขุมวิท ซ.12', 'e1'),
-  (gen_random_uuid(), 'มินิมาร์ท 24 ชม.', '082-345-6789', 'ปากซอยรัชดา 7', 'e1'),
-  (gen_random_uuid(), 'โรงเรียนอนุบาลดาวเด่น', '083-456-7890', 'ถ.พหลโยธิน', 'e1'),
-  (gen_random_uuid(), 'คลินิกหมอสมศรี', '084-567-8901', 'ตลาดนัดเมืองใหม่', 'e1'),
-  (gen_random_uuid(), 'ร้านก๋วยเตี๋ยวเรือป้านิด', '085-678-9012', 'ตลาดสดเทศบาล', 'e2'),
-  (gen_random_uuid(), 'แผงผลไม้เจ๊หมวย', '086-789-0123', 'ตลาดสดเทศบาล แผง 14', 'e2'),
-  (gen_random_uuid(), 'ร้านกาแฟ Bean & Brew', '087-890-1234', 'หน้าตลาดสด', 'e2'),
-  (gen_random_uuid(), 'หอพักนักศึกษารุ่งเรือง', '088-901-2345', 'ซ.มหาวิทยาลัย 3', 'e2'),
-  (gen_random_uuid(), 'บริษัท ไทยพลาสติก จก.', '089-012-3456', 'นิคมฯ โซน B', 'e3'),
-  (gen_random_uuid(), 'โรงงานเย็บผ้า เอส.ที.', '090-123-4567', 'นิคมฯ โซน C', 'e3'),
-  (gen_random_uuid(), 'แคนทีนโรงงานไทยเมทัล', '091-234-5678', 'นิคมฯ โซน A', 'e3'),
-  (gen_random_uuid(), 'รีสอร์ทริมธาร', '092-345-6789', 'ถ.เลียบคลอง ชานเมือง', 'e4'),
-  (gen_random_uuid(), 'ร้านชำป้าสมพร', '093-456-7890', 'หมู่บ้านสุขสันต์', 'e4'),
-  (gen_random_uuid(), 'ฟิตเนสสตูดิโอ FIT+', '094-567-8901', 'ห้างชานเมืองพลาซ่า', 'e4'),
-  (gen_random_uuid(), 'ลูกค้าหน้าร้าน (เงินสด)', '-', 'หน้าโรงงาน', 'e5'),
-  (gen_random_uuid(), 'ลูกค้าทั่วไป / ขายส่ง', '-', '-', 'e5');
+-- Guarded by "where not exists" (rather than on conflict) since each row
+-- gets a fresh random id — without the guard, re-running this script would
+-- duplicate all 16 customers every time.
+insert into customers (id, name, phone, address, employee_id)
+select gen_random_uuid(), v.name, v.phone, v.address, v.employee_id
+from (values
+  ('ร้านอาหารครัวคุณแม่', '081-234-5678', 'ถ.สุขุมวิท ซ.12', 'e1'),
+  ('มินิมาร์ท 24 ชม.', '082-345-6789', 'ปากซอยรัชดา 7', 'e1'),
+  ('โรงเรียนอนุบาลดาวเด่น', '083-456-7890', 'ถ.พหลโยธิน', 'e1'),
+  ('คลินิกหมอสมศรี', '084-567-8901', 'ตลาดนัดเมืองใหม่', 'e1'),
+  ('ร้านก๋วยเตี๋ยวเรือป้านิด', '085-678-9012', 'ตลาดสดเทศบาล', 'e2'),
+  ('แผงผลไม้เจ๊หมวย', '086-789-0123', 'ตลาดสดเทศบาล แผง 14', 'e2'),
+  ('ร้านกาแฟ Bean & Brew', '087-890-1234', 'หน้าตลาดสด', 'e2'),
+  ('หอพักนักศึกษารุ่งเรือง', '088-901-2345', 'ซ.มหาวิทยาลัย 3', 'e2'),
+  ('บริษัท ไทยพลาสติก จก.', '089-012-3456', 'นิคมฯ โซน B', 'e3'),
+  ('โรงงานเย็บผ้า เอส.ที.', '090-123-4567', 'นิคมฯ โซน C', 'e3'),
+  ('แคนทีนโรงงานไทยเมทัล', '091-234-5678', 'นิคมฯ โซน A', 'e3'),
+  ('รีสอร์ทริมธาร', '092-345-6789', 'ถ.เลียบคลอง ชานเมือง', 'e4'),
+  ('ร้านชำป้าสมพร', '093-456-7890', 'หมู่บ้านสุขสันต์', 'e4'),
+  ('ฟิตเนสสตูดิโอ FIT+', '094-567-8901', 'ห้างชานเมืองพลาซ่า', 'e4'),
+  ('ลูกค้าหน้าร้าน (เงินสด)', '-', 'หน้าโรงงาน', 'e5'),
+  ('ลูกค้าทั่วไป / ขายส่ง', '-', '-', 'e5')
+) as v(name, phone, address, employee_id)
+where not exists (select 1 from customers);
 
 -- ============================================================
 -- NEXT STEP (do this after running the above):
