@@ -38,29 +38,38 @@
         </div>
       </div>
 
+      <!-- role switch -->
+      <div style="display:flex;background:#eef2f5;border-radius:9px;padding:3px;gap:3px">
+        <button onClick="{{ setRoleOwner }}" style="{{ roleOwnerStyle }}">เจ้าของ / แอดมิน</button>
+        <button onClick="{{ setRoleEmp }}" style="{{ roleEmpStyle }}">มุมมองพนักงาน</button>
+      </div>
+
       <!-- who -->
-      <sc-if value="{{ showLogout }}" hint-placeholder-val="{{ false }}">
       <div style="display:flex;align-items:center;gap:9px">
         <div style="width:32px;height:32px;border-radius:50%;background:#123a5e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">{{ whoInitial }}</div>
         <div style="line-height:1.2">
           <div style="font-size:13px;font-weight:600">{{ whoName }}</div>
           <div style="font-size:11px;color:#6b7787">{{ whoSub }}</div>
         </div>
-        <button onClick="{{ logout }}" style="border:1px solid #e0e4e9;background:#fff;color:#6b7787;font-size:12px;padding:6px 11px;border-radius:8px;cursor:pointer">ออกจากระบบ</button>
+        <sc-if value="{{ showLogoutOwner }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ logout }}" style="border:1px solid #e0e4e9;background:#fff;color:#6b7787;font-size:12px;padding:6px 11px;border-radius:8px;cursor:pointer">ออกจากระบบ</button>
+        </sc-if>
+        <sc-if value="{{ showChangeEmp }}" hint-placeholder-val="{{ false }}">
+          <button onClick="{{ changeEmp }}" style="border:1px solid #e0e4e9;background:#fff;color:#6b7787;font-size:12px;padding:6px 11px;border-radius:8px;cursor:pointer">เปลี่ยนพนักงาน</button>
+        </sc-if>
       </div>
-      </sc-if>
     </div>
   </header>
 
   <div style="max-width:1240px;margin:0 auto;padding:20px">
 
-    <!-- ================= LOGIN GATE ================= -->
+    <!-- ================= LOGIN GATE (owner) ================= -->
     <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ false }}">
-    <div data-screen-label="Login" style="display:flex;align-items:center;justify-content:center;padding:50px 16px">
+    <div data-screen-label="Admin Login" style="display:flex;align-items:center;justify-content:center;padding:50px 16px">
       <div style="width:100%;max-width:376px;background:#fff;border:1px solid #e5e9ee;border-radius:16px;padding:32px 30px;box-shadow:0 6px 26px rgba(16,40,64,.07)">
         <img src="assets/logo.png" alt="OCEAN" style="height:56px;width:56px;object-fit:cover;object-position:center 34%;border-radius:13px;background:#f0f4f7;display:block;margin:0 auto 14px" />
-        <div style="text-align:center;font-size:18px;font-weight:700;color:#123a5e">เข้าสู่ระบบ</div>
-        <div style="text-align:center;font-size:12.5px;color:#8a94a0;margin:5px 0 22px">สำหรับเจ้าของและพนักงาน</div>
+        <div style="text-align:center;font-size:18px;font-weight:700;color:#123a5e">เข้าสู่ระบบผู้ดูแล</div>
+        <div style="text-align:center;font-size:12.5px;color:#8a94a0;margin:5px 0 22px">สำหรับเจ้าของ / แอดมิน เท่านั้น</div>
         <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:14px">อีเมล
           <input type="email" value="{{ login.email }}" onChange="{{ onLoginEmail }}" onKeyDown="{{ onLoginKey }}" placeholder="you@example.com" style="width:100%;margin-top:5px;padding:11px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px" />
         </label>
@@ -74,6 +83,25 @@
         <div style="text-align:center;font-size:11.5px;color:#a6afb8;margin-top:16px;line-height:1.6">
           ระบบจะจดจำการเข้าสู่ระบบของคุณไว้ในเบราว์เซอร์นี้
         </div>
+      </div>
+    </div>
+    </sc-if>
+
+    <!-- ================= EMPLOYEE PICKER ================= -->
+    <sc-if value="{{ showEmpPicker }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Employee Login" style="max-width:660px;margin:0 auto;padding:40px 8px">
+      <div style="text-align:center;font-size:19px;font-weight:700;color:#123a5e;margin-bottom:4px">เลือกชื่อพนักงานของคุณ</div>
+      <div style="text-align:center;font-size:12.5px;color:#8a94a0;margin-bottom:24px">แต่ละคนจะเห็นเฉพาะลูกค้าและยอดของสายตัวเอง</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px">
+        <sc-for list="{{ empPickerItems }}" as="e" hint-placeholder-count="4">
+          <button onClick="{{ e.onPick }}" style="display:flex;align-items:center;gap:13px;text-align:left;background:#fff;border:1px solid #e5e9ee;border-radius:13px;padding:16px 18px;cursor:pointer;box-shadow:0 1px 3px rgba(16,40,64,.05)">
+            <div style="width:44px;height:44px;border-radius:50%;background:{{ e.dot }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600">{{ e.initial }}</div>
+            <div>
+              <div style="font-size:15px;font-weight:600;color:#1f2a37">{{ e.name }}</div>
+              <div style="font-size:12px;color:#8a94a0">{{ e.route }}</div>
+            </div>
+          </button>
+        </sc-for>
       </div>
     </div>
     </sc-if>
@@ -1241,7 +1269,7 @@ class Component extends DCLogic {
     view: 'summary', scope: 'all', period: 'day',
     selectedDate: this.isoLocal(new Date()),
     sales: [], expenses: [], factory: [], customers: [],
-    authed: false, authChecked: false, role: null, currentEmployeeId: null, profileName: '',
+    role: 'owner', authed: false, authChecked: false, empChosen: false, currentEmployeeId: 'e1',
     login: { email: '', pass: '', error: '' },
     search: '', selectedCustomerId: null, suggestOpen: false, payModal: null, slipView: null, invoiceOrder: null, custEdit: null,
     typeFilter: 'all', expFilter: 'all', plPeriod: 'month', facPeriod: 'month',
@@ -1449,8 +1477,9 @@ class Component extends DCLogic {
 
     const V = {
       isOwner,
-      showLogin: !st.authed,
-      showApp: st.authed,
+      showLogin: isOwner && !st.authed,
+      showEmpPicker: !isOwner && !st.empChosen,
+      showApp: (isOwner && st.authed) || (!isOwner && st.empChosen),
       isSummary: view === 'summary', isSales: view === 'sales', isCustomers: view === 'customers', isFactory: isOwner && view === 'factory', isProfit: isOwner && view === 'profit',
       selectedDate: st.selectedDate, dateLabel: navLabel, dateSubLabel: navSub,
       period: st.period,
@@ -1459,10 +1488,14 @@ class Component extends DCLogic {
       setPeriodMonth: () => this.setState({ period: 'month' }),
       setPeriodYear: () => this.setState({ period: 'year' }),
       types: this.TYPES, employees: this.EMP, expCats: this.EXPCATS,
-      whoInitial: isOwner ? 'OW' : this.empName(st.currentEmployeeId).slice(0, 1),
-      whoName: isOwner ? 'เจ้าของกิจการ' : this.empName(st.currentEmployeeId),
-      whoSub: isOwner ? 'เห็นข้อมูลทุกคน' : (this.EMP.find(e => e.id === st.currentEmployeeId) || {}).route,
-      showLogout: st.authed,
+      roleOwnerStyle: seg(isOwner), roleEmpStyle: seg(!isOwner),
+      setRoleOwner: () => this.setState({ role: 'owner' }),
+      setRoleEmp: () => this.setState({ role: 'employee' }),
+      whoInitial: isOwner ? 'OW' : (st.empChosen ? this.empName(st.currentEmployeeId).slice(0, 1) : '?'),
+      whoName: isOwner ? 'เจ้าของกิจการ' : (st.empChosen ? this.empName(st.currentEmployeeId) : 'พนักงาน'),
+      whoSub: isOwner ? 'เห็นข้อมูลทุกคน' : (st.empChosen ? (this.EMP.find(e => e.id === st.currentEmployeeId) || {}).route : 'ยังไม่เลือกชื่อ'),
+      showLogoutOwner: isOwner && st.authed,
+      showChangeEmp: !isOwner && st.empChosen,
       tabSummaryStyle: tab(view === 'summary'), tabSalesStyle: tab(view === 'sales'), tabCustomersStyle: tab(view === 'customers'), tabFactoryStyle: tab(view === 'factory'), tabProfitStyle: tab(view === 'profit'),
       setViewSummary: () => this.setState({ view: 'summary' }),
       setViewSales: () => this.setState({ view: 'sales' }),
@@ -1473,13 +1506,17 @@ class Component extends DCLogic {
       stop: e => e.stopPropagation(),
     };
 
-    // login
+    // login (owner only)
     V.login = st.login; V.loginError = st.login.error; V.hasLoginError = !!st.login.error;
     V.onLoginEmail = e => this.up('login', 'email', e.target.value);
     V.onLoginPass = e => this.up('login', 'pass', e.target.value);
     V.onLoginKey = e => { if (e.key === 'Enter') this.doLogin(); };
     V.doLogin = () => this.doLogin();
     V.logout = () => this.logout();
+
+    // employee picker (no login — just tags which route new records belong to)
+    V.empPickerItems = this.EMP.map(e => ({ name: e.name, route: e.route, dot: e.dot, initial: e.name.slice(0, 1), onPick: () => this.setState({ currentEmployeeId: e.id, empChosen: true, selectedCustomerId: null }) }));
+    V.changeEmp = () => this.setState({ empChosen: false });
 
     // scope chips (owner)
     V.scopeItems = [{ id: 'all', label: 'ทุกคน (รวม)' }].concat(this.EMP.map(e => ({ id: e.id, label: e.name.split(' ')[0] }))).map(o => ({
@@ -1909,25 +1946,25 @@ class Component extends DCLogic {
   }
 
   // ---------- lifecycle & data loading ----------
+  // Only the owner ever authenticates. Employees use the app straight away
+  // (no login) — customers/sales/expenses are readable/writable by anyone
+  // holding the page (see the RLS note in supabase/schema.sql), so data
+  // loads immediately regardless of auth state.
   async componentDidMount() {
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session) await this.hydrateSession(session);
-    else this.setState({ authed: false, authChecked: true });
-    supabase.auth.onAuthStateChange((event) => {
-      if (event === 'SIGNED_OUT') this.setState({ authed: false, authChecked: true, role: null, currentEmployeeId: null, sales: [], expenses: [], factory: [], customers: [] });
-    });
-  }
-  async hydrateSession(session) {
-    const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
-    if (error || !profile) {
-      await supabase.auth.signOut();
-      this.setState(s => ({ authed: false, authChecked: true, login: { ...s.login, error: 'บัญชีนี้ยังไม่ได้ตั้งค่าสิทธิ์ในระบบ กรุณาติดต่อเจ้าของกิจการ' } }));
-      return;
-    }
     const { data: emp } = await supabase.from('employees').select('*').order('sort_order');
     if (emp && emp.length) this.EMP = emp.map(e => ({ id: e.id, name: e.name, route: e.route, dot: e.dot }));
     await this.loadData();
-    this.setState({ authed: true, authChecked: true, role: profile.role, currentEmployeeId: profile.employee_id, profileName: profile.display_name || '' });
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session) await this.verifyOwnerSession(session);
+    this.setState({ authChecked: true });
+    supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') this.setState({ authed: false });
+    });
+  }
+  async verifyOwnerSession(session) {
+    const { data: profile, error } = await supabase.from('profiles').select('*').eq('id', session.user.id).single();
+    if (error || !profile || profile.role !== 'owner') { await supabase.auth.signOut(); return; }
+    this.setState({ authed: true, role: 'owner' });
   }
   async loadData() {
     const [{ data: customers }, { data: sales }, { data: expenses }, { data: factory }] = await Promise.all([
@@ -1975,12 +2012,18 @@ class Component extends DCLogic {
       this.setState(s => ({ login: { ...s.login, error: 'อีเมลหรือรหัสผ่านไม่ถูกต้อง' } }));
       return;
     }
-    this.setState({ login: { email: '', pass: '', error: '' } });
-    await this.hydrateSession(data.session);
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', data.session.user.id).single();
+    if (!profile || profile.role !== 'owner') {
+      await supabase.auth.signOut();
+      this.setState(s => ({ login: { ...s.login, error: 'บัญชีนี้ไม่มีสิทธิ์เจ้าของ' } }));
+      return;
+    }
+    this.setState({ authed: true, role: 'owner', login: { email: '', pass: '', error: '' } });
+    await this.loadData();
   }
   async logout() {
     await supabase.auth.signOut();
-    this.setState({ authed: false, role: null, currentEmployeeId: null, sales: [], expenses: [], factory: [], customers: [], login: { email: '', pass: '', error: '' } });
+    this.setState({ authed: false, factory: [], login: { email: '', pass: '', error: '' } });
   }
   shiftPeriod(dir) {
     const t = new Date(this.state.selectedDate + 'T00:00:00'); const v = this.state.view;

@@ -12,43 +12,25 @@
 3. เปิดไฟล์ [`supabase/schema.sql`](supabase/schema.sql) ในโปรเจกต์นี้ คัดลอกทั้งหมด แล้ววางในช่อง SQL Editor
 4. กด **Run**
 
-ขั้นตอนนี้จะสร้าง: ตาราง `employees`, `customers`, `sales`, `expenses`, `factory_expenses`, `profiles`, กฎ Row Level Security (RLS) ที่ทำให้พนักงานเห็นเฉพาะข้อมูลสายตัวเอง ส่วนเจ้าของเห็นทั้งหมด, storage bucket ชื่อ `slips` สำหรับเก็บรูปสลิปโอนเงิน, และ seed ข้อมูลพนักงาน 5 คน + ลูกค้า 16 รายที่มีอยู่แล้วในระบบเดิม
+ขั้นตอนนี้จะสร้าง: ตาราง `employees`, `customers`, `sales`, `expenses`, `factory_expenses`, `profiles`, storage bucket ชื่อ `slips` สำหรับเก็บรูปสลิปโอนเงิน, และ seed ข้อมูลพนักงาน 5 คน + ลูกค้า 16 รายที่มีอยู่แล้วในระบบเดิม
+
+**เรื่องสิทธิ์การเข้าถึง (RLS):** มีแค่ "เจ้าของ" เท่านั้นที่ login ด้วยอีเมล+รหัสผ่านจริง ฝั่งพนักงานไม่ต้อง login เลย — แค่แตะเลือกชื่อตัวเองแล้วใช้งานได้ทันที เพื่อให้ตรงกับที่ต้องการนี้ ตาราง `customers` / `sales` / `expenses` (และ storage bucket `slips`) จึง**เปิดให้อ่าน/เขียนได้จากทุกคนที่เข้าเว็บถึง** โดยไม่ต้องมี credential — ตัวเว็บเองเป็นคนกำหนดว่าข้อมูลที่กรอกจะถูกติดชื่อพนักงานคนไหน ไม่ใช่ระบบฐานข้อมูล พูดง่ายๆ คือ**ใครก็ตามที่มีลิงก์เว็บนี้ สามารถดู/แก้ไขข้อมูลลูกค้าและยอดขายของทุกสายได้ ไม่ใช่แค่สายตัวเอง** — เหมาะกับกรณีที่ลิงก์นี้ให้เฉพาะพนักงาน 5 คนในทีมเท่านั้น ไม่ควรแชร์ต่อสาธารณะ ส่วน `factory_expenses` (ค่าใช้จ่ายโรงงาน) ยังคงจำกัดเฉพาะเจ้าของเท่านั้น เพราะต้อง login จริง
 
 **หมายเหตุ:** ข้อมูลการขาย/ค่าใช้จ่ายเดิมในเว็บ (ที่เห็นตอนเดโม) เป็นข้อมูลสุ่มขึ้นมาเพื่อสาธิตเท่านั้น จะ**ไม่ถูก**ย้ายเข้าฐานข้อมูลจริง — ตารางยอดขาย/ค่าใช้จ่ายจะเริ่มต้นว่างเปล่า พร้อมให้กรอกข้อมูลจริงตั้งแต่วันนี้เป็นต้นไป
 
 ---
 
-## ขั้นตอนที่ 2 — สร้างบัญชีผู้ใช้ (เจ้าของ + พนักงาน 5 คน)
+## ขั้นตอนที่ 2 — สร้างบัญชีผู้ใช้ (เจ้าของ 1 บัญชีเท่านั้น)
 
-ระบบใหม่ใช้อีเมล+รหัสผ่านจริงแทนรหัสผ่านทดลองเดิม แต่ละคนต้องมีบัญชีของตัวเอง
+ระบบใหม่ใช้อีเมล+รหัสผ่านจริงแทนรหัสผ่านทดลองเดิม สำหรับหน้า "เจ้าของ / แอดมิน" เท่านั้น — พนักงานไม่ต้องมีบัญชี
 
 1. ไปที่เมนู **Authentication → Users** → **Add user** (เลือก "Create new user", ระบุอีเมล+รหัสผ่าน, ติ๊ก "Auto Confirm User")
-2. ทำซ้ำ 6 ครั้ง สำหรับ: เจ้าของกิจการ, แจ็ค (e1), บอย (e2), แปดริ้ว (e3), OEM/ETC (e4), อื่นๆ (e5)
-3. หลังสร้างครบแล้ว กลับไปที่ **SQL Editor** แล้วรัน (แก้อีเมลให้ตรงกับที่สร้างจริง):
+2. กลับไปที่ **SQL Editor** แล้วรัน (แก้อีเมลให้ตรงกับที่สร้างจริง):
 
 ```sql
--- เจ้าของกิจการ
 insert into profiles (id, role, employee_id, display_name)
 select id, 'owner', null, 'เจ้าของกิจการ' from auth.users where email = 'owner@yourdomain.com';
-
--- พนักงาน (แก้อีเมลและ employee_id ให้ตรงกับแต่ละคน)
-insert into profiles (id, role, employee_id, display_name)
-select id, 'employee', 'e1', 'แจ็ค' from auth.users where email = 'jack@yourdomain.com';
-
-insert into profiles (id, role, employee_id, display_name)
-select id, 'employee', 'e2', 'บอย' from auth.users where email = 'boy@yourdomain.com';
-
-insert into profiles (id, role, employee_id, display_name)
-select id, 'employee', 'e3', 'แปดริ้ว' from auth.users where email = 'paedriw@yourdomain.com';
-
-insert into profiles (id, role, employee_id, display_name)
-select id, 'employee', 'e4', 'OEM / ETC' from auth.users where email = 'oem@yourdomain.com';
-
-insert into profiles (id, role, employee_id, display_name)
-select id, 'employee', 'e5', 'อื่นๆ' from auth.users where email = 'other@yourdomain.com';
 ```
-
-ใช้อีเมลจริงของแต่ละคน (ไม่จำเป็นต้องเป็นอีเมลใช้งานจริง แค่เป็น username สำหรับ login ก็ได้ เช่น `jack@ocean.internal`)
 
 ---
 
@@ -98,7 +80,7 @@ git push -u origin main
 | ขั้นตอน | ใครทำ |
 |---|---|
 | 1. รัน schema.sql | คุณ (Supabase SQL Editor) |
-| 2. สร้างบัญชีผู้ใช้ 6 คน + link profiles | คุณ (Supabase Dashboard + SQL Editor) |
+| 2. สร้างบัญชีเจ้าของ 1 บัญชี + link profile | คุณ (Supabase Dashboard + SQL Editor) |
 | 3. ส่ง Project URL + anon key | คุณ → ผม |
 | ผมใส่ config + ทดสอบระบบจริง | ผม |
 | 4. Push ขึ้น GitHub | คุณ |

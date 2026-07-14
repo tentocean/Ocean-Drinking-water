@@ -16,6 +16,8 @@ create table if not exists employees (
   sort_order int not null default 0
 );
 
+-- Only ever holds one row: the owner's account. Employees don't log in —
+-- see the RLS section below for what that means for data access.
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
   role text not null check (role in ('owner','employee')),
@@ -89,13 +91,20 @@ language sql stable security definer set search_path = public as $$
   select exists(select 1 from profiles where id = auth.uid() and role = 'owner');
 $$;
 
-create or replace function my_employee_id() returns text
-language sql stable security definer set search_path = public as $$
-  select employee_id from profiles where id = auth.uid();
-$$;
-
 -- ============================================================
 -- ROW LEVEL SECURITY
+--
+-- Only the owner logs in (real Supabase Auth). Employees use the app with
+-- no credential at all — they just tap their name in the picker. That
+-- means Postgres has no way to tell "employee A" apart from "employee B"
+-- (or from any other visitor) at the database layer: anyone who has the
+-- deployed URL can read and write customers/sales/expenses for ANY route,
+-- not just their own, since there's no login to scope by. The picker only
+-- controls what the *app UI* tags a new record with — it is not a security
+-- boundary. This is intentional (chosen for lower login friction for
+-- delivery staff) but worth remembering if the URL is ever shared beyond
+-- the 5 staff it's meant for. factory_expenses and profiles stay
+-- owner-only since only the owner ever authenticates.
 -- ============================================================
 
 alter table employees enable row level security;
@@ -105,45 +114,26 @@ alter table sales enable row level security;
 alter table expenses enable row level security;
 alter table factory_expenses enable row level security;
 
--- employees: any signed-in user can read (needed for dropdowns); only owner writes
+-- employees: anyone can read (needed for the picker/dropdowns); only owner writes
 create policy employees_select on employees for select
-  using (auth.role() = 'authenticated');
+  using (true);
 create policy employees_write on employees for all
   using (is_owner()) with check (is_owner());
 
--- profiles: read own row, or all rows if owner. No client-side writes.
+-- profiles: read own row (owner only ever has one). No client-side writes.
 create policy profiles_select on profiles for select
-  using (id = auth.uid() or is_owner());
+  using (id = auth.uid());
 
--- customers: owner sees/writes all; employee sees/writes only their own route
-create policy customers_select on customers for select
-  using (is_owner() or employee_id = my_employee_id());
-create policy customers_insert on customers for insert
-  with check (is_owner() or employee_id = my_employee_id());
-create policy customers_update on customers for update
-  using (is_owner() or employee_id = my_employee_id())
-  with check (is_owner() or employee_id = my_employee_id());
+-- customers / sales / expenses: open to anyone holding the anon key (owner
+-- included) — see the RLS note above for why there's no per-employee scoping.
+create policy customers_all on customers for all
+  using (true) with check (true);
+create policy sales_all on sales for all
+  using (true) with check (true);
+create policy expenses_all on expenses for all
+  using (true) with check (true);
 
--- sales: owner sees/writes all; employee sees/writes only their own route
-create policy sales_select on sales for select
-  using (is_owner() or employee_id = my_employee_id());
-create policy sales_insert on sales for insert
-  with check (is_owner() or employee_id = my_employee_id());
-create policy sales_update on sales for update
-  using (is_owner() or employee_id = my_employee_id())
-  with check (is_owner() or employee_id = my_employee_id());
-create policy sales_delete on sales for delete
-  using (is_owner() or employee_id = my_employee_id());
-
--- expenses: owner sees/writes/deletes all; employee sees/writes/deletes only their own route
-create policy expenses_select on expenses for select
-  using (is_owner() or employee_id = my_employee_id());
-create policy expenses_insert on expenses for insert
-  with check (is_owner() or employee_id = my_employee_id());
-create policy expenses_delete on expenses for delete
-  using (is_owner() or employee_id = my_employee_id());
-
--- factory_expenses: owner only
+-- factory_expenses: owner only (matches the UI, which only shows this tab to the owner)
 create policy factory_expenses_all on factory_expenses for all
   using (is_owner()) with check (is_owner());
 
@@ -155,14 +145,10 @@ insert into storage.buckets (id, name, public)
 values ('slips', 'slips', false)
 on conflict (id) do nothing;
 
--- objects are stored as: slips/{employee_id}/{filename}
-create policy slips_owner_all on storage.objects for all
-  using (bucket_id = 'slips' and is_owner())
-  with check (bucket_id = 'slips' and is_owner());
-
-create policy slips_employee_rw on storage.objects for all
-  using (bucket_id = 'slips' and (storage.foldername(name))[1] = my_employee_id())
-  with check (bucket_id = 'slips' and (storage.foldername(name))[1] = my_employee_id());
+-- Open like customers/sales/expenses above — no per-employee credential to scope by.
+create policy slips_all on storage.objects for all
+  using (bucket_id = 'slips')
+  with check (bucket_id = 'slips');
 
 -- ============================================================
 -- SEED DATA — real employees & customers (matches current app)
@@ -196,6 +182,6 @@ insert into customers (id, name, phone, address, employee_id) values
 
 -- ============================================================
 -- NEXT STEP (do this after running the above):
--- Create auth users in Dashboard -> Authentication -> Users, then run
--- the profile-linking snippet from DEPLOY.md for each one.
+-- Create ONE auth user in Dashboard -> Authentication -> Users (the owner),
+-- then run the profile-linking snippet from DEPLOY.md.
 -- ============================================================
