@@ -91,9 +91,6 @@ language sql stable security definer set search_path = public as $$
   select exists(select 1 from profiles where id = auth.uid() and role = 'owner');
 $$;
 
--- leftover from an earlier version of this script, no longer used
-drop function if exists my_employee_id();
-
 -- ============================================================
 -- ROW LEVEL SECURITY
 --
@@ -177,6 +174,10 @@ drop policy if exists slips_employee_rw on storage.objects;
 create policy slips_all on storage.objects for all
   using (bucket_id = 'slips')
   with check (bucket_id = 'slips');
+
+-- Now safe to drop: every policy that referenced it (customers/sales/expenses/slips
+-- from an earlier version of this script) was dropped above.
+drop function if exists my_employee_id();
 
 -- ============================================================
 -- SEED DATA — real employees & customers (matches current app)
