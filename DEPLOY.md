@@ -61,17 +61,19 @@ git push -u origin main
 
 ---
 
-## ขั้นตอนที่ 5 — เชื่อม Cloudflare Pages
+## ขั้นตอนที่ 5 — เชื่อม Cloudflare (Workers static assets)
 
-1. เข้า [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → **Pages** → **Connect to Git**
-2. เลือก repo ที่เพิ่ง push ไป
-3. ตั้งค่า build:
-   - **Framework preset:** None
-   - **Build command:** (เว้นว่าง)
-   - **Build output directory:** `/`
-4. กด **Save and Deploy**
+Cloudflare เปลี่ยน flow ใหม่ — ตอนเชื่อม Git จะให้ตั้งค่าแบบ Workers (ใช้ `wrangler`) แทนหน้า "Pages" แบบเดิม โปรเจกต์นี้มีไฟล์ `wrangler.jsonc` เตรียมไว้ให้แล้ว รองรับ flow ใหม่นี้โดยไม่ต้อง build อะไรเลย
 
-เว็บจะขึ้นที่ URL แบบ `xxxxx.pages.dev` — ใส่ custom domain เพิ่มได้ในภายหลังจากเมนู Custom domains ของโปรเจกต์นั้น
+1. เข้า [dash.cloudflare.com](https://dash.cloudflare.com) → **Workers & Pages** → **Create** → เลือกแท็บที่เชื่อม Git ได้ → **Connect to Git**
+2. เลือก repo `Ocean-Drinking-water`
+3. ตั้งชื่อโปรเจกต์เป็นตัวพิมพ์เล็ก/ตัวเลข/ขีดกลางเท่านั้น เช่น `ocean-drinking-water` (ห้ามมีช่องว่างหรือตัวพิมพ์ใหญ่)
+4. ตั้งค่า:
+   - **Build command:** เว้นว่างไว้
+   - **Deploy command:** ปล่อยเป็น `npx wrangler deploy` ตามค่าเริ่มต้น (ระบบจะอ่านค่าจาก `wrangler.jsonc` ในโปรเจกต์เอง)
+5. กด **Deploy**
+
+เว็บจะขึ้นที่ URL แบบ `xxxxx.workers.dev` — เปิดหน้าแรกจะเจอ `index.html` ที่พาไปหน้าแอปหลักอัตโนมัติ ใส่ custom domain เพิ่มได้ในภายหลังจากเมนูของโปรเจกต์นั้น
 
 ---
 
