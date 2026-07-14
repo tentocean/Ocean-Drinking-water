@@ -1,7 +1,0 @@
-.git
-.gitignore
-.claude
-.DS_Store
-DEPLOY.md
-wrangler.jsonc
-supabase
