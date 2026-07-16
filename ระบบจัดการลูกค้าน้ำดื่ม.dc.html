@@ -40,6 +40,13 @@
     .m-custsub{ display:none !important; }         /* single-line customer name in the list */
     .m-custhead{ flex-wrap:wrap; }                 /* customer name on its own line, buttons below */
     .m-custhead > div:first-child{ width:100%; }
+    /* order history: turn the wide table into a stacked card per row so nothing is cut off */
+    .m-hist{ min-width:0 !important; display:block; }
+    .m-hist thead{ display:none; }
+    .m-hist tbody{ display:block; }
+    .m-hist tbody tr{ display:block; padding:10px 16px; border-top:1px solid #eef2f5; }
+    .m-hist tbody td{ display:flex !important; align-items:center; justify-content:space-between; gap:12px; padding:4px 0 !important; text-align:right !important; }
+    .m-hist tbody td::before{ content:attr(data-label); color:#8a94a0; font-weight:500; white-space:nowrap; text-align:left; }
   }
 
   @page{ size:A4; margin:0 }
@@ -750,7 +757,7 @@
               </sc-if>
             </div>
             <div style="overflow-x:auto">
-              <table style="width:100%;border-collapse:collapse;min-width:600px;font-size:13.5px">
+              <table class="m-hist" style="width:100%;border-collapse:collapse;min-width:600px;font-size:13.5px">
                 <thead>
                   <tr style="background:#f7f9fb;color:#6b7787;font-size:11.5px">
                     <th style="padding:10px 16px;text-align:left;font-weight:600">วันที่ส่ง</th>
@@ -763,11 +770,11 @@
                 <tbody>
                   <sc-for list="{{ cust.history }}" as="h" hint-placeholder-count="6">
                     <tr style="border-top:1px solid #eef2f5">
-                      <td style="padding:11px 16px" class="mono">{{ h.dateF }}</td>
-                      <td style="padding:11px 12px;color:#4a5a6a">{{ h.typeLabel }}</td>
-                      <td style="padding:11px 12px;text-align:right" class="mono">{{ h.qty }}</td>
-                      <td style="padding:11px 12px;text-align:right;font-weight:600" class="mono">{{ h.totalF }}</td>
-                      <td style="padding:11px 16px">
+                      <td data-label="วันที่ส่ง" style="padding:11px 16px" class="mono">{{ h.dateF }}</td>
+                      <td data-label="ประเภท" style="padding:11px 12px;color:#4a5a6a">{{ h.typeLabel }}</td>
+                      <td data-label="จำนวน" style="padding:11px 12px;text-align:right" class="mono">{{ h.qty }}</td>
+                      <td data-label="ยอดรวม" style="padding:11px 12px;text-align:right;font-weight:600" class="mono">{{ h.totalF }}</td>
+                      <td data-label="สถานะ" style="padding:11px 16px">
                         <span style="display:inline-flex;align-items:center;gap:6px">
                           <sc-if value="{{ h.paid }}" hint-placeholder-val="{{ true }}">
                             <span style="{{ h.badgeStyle }}">{{ h.statusLabel }}</span>
