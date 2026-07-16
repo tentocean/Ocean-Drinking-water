@@ -20,6 +20,22 @@
   a{color:#1c5f96}a:hover{color:#123a5e}
   ::-webkit-scrollbar{height:9px;width:9px}::-webkit-scrollbar-thumb{background:#cfd6dd;border-radius:6px}
   .mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
+
+  /* ===== Smartphone layout (employee view & app chrome) ===== */
+  @media (max-width:640px){
+    html, body{ overflow-x:hidden; }
+    .m-wrap{ padding:12px !important; }
+    header{ position:static !important; }        /* let the header scroll away for more room */
+    .m-hdr{ padding:8px 12px !important; gap:8px 10px !important; }
+    .m-logo{ height:34px !important; width:34px !important; }
+    .m-sub{ display:none !important; }           /* hide subtitle to save a line */
+    .m-role{ order:3; width:100%; }              /* role switch on its own full-width row */
+    .m-role button{ flex:1; padding:9px 6px !important; font-size:12.5px !important; }
+    .m-who{ margin-left:auto; }
+    .m-tabs{ width:100%; align-items:stretch; }  /* tabs fill the width, all visible */
+    .m-tabs button{ flex:1 1 0; min-width:0; padding:8px 4px !important; font-size:12px !important; line-height:1.2; white-space:normal !important; text-align:center; min-height:44px; }
+  }
+
   @page{ size:A4; margin:0 }
   @media print{
     html, body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; background:#fff !important }
@@ -38,23 +54,23 @@
 
   <!-- ============ TOP BAR ============ -->
   <header style="position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #e5e9ee;box-shadow:0 1px 2px rgba(16,40,64,.04)">
-    <div style="max-width:1240px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+    <div class="m-hdr" style="max-width:1240px;margin:0 auto;padding:10px 20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap">
       <div style="display:flex;align-items:center;gap:11px;margin-right:auto">
-        <img src="assets/logo.png?v=2" alt="OCEAN" style="height:44px;width:44px;object-fit:contain;border-radius:9px;background:#fff" />
+        <img src="assets/logo.png?v=2" alt="OCEAN" class="m-logo" style="height:44px;width:44px;object-fit:contain;border-radius:9px;background:#fff" />
         <div style="line-height:1.15">
           <div style="font-weight:700;font-size:15px;letter-spacing:.02em;color:#123a5e">OCEAN <span style="color:#4a83b0">Drinking&nbsp;Water</span></div>
-          <div style="font-size:11.5px;color:#6b7787">ระบบจัดการลูกค้า &amp; สรุปยอดรายวัน</div>
+          <div class="m-sub" style="font-size:11.5px;color:#6b7787">ระบบจัดการลูกค้า &amp; สรุปยอดรายวัน</div>
         </div>
       </div>
 
       <!-- role switch -->
-      <div style="display:flex;background:#eef2f5;border-radius:9px;padding:3px;gap:3px">
+      <div class="m-role" style="display:flex;background:#eef2f5;border-radius:9px;padding:3px;gap:3px">
         <button onClick="{{ setRoleOwner }}" style="{{ roleOwnerStyle }}">เจ้าของ / แอดมิน</button>
         <button onClick="{{ setRoleEmp }}" style="{{ roleEmpStyle }}">มุมมองพนักงาน</button>
       </div>
 
       <!-- who -->
-      <div style="display:flex;align-items:center;gap:9px">
+      <div class="m-who" style="display:flex;align-items:center;gap:9px">
         <div style="width:32px;height:32px;border-radius:50%;background:#123a5e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">{{ whoInitial }}</div>
         <div style="line-height:1.2">
           <div style="font-size:13px;font-weight:600">{{ whoName }}</div>
@@ -70,7 +86,7 @@
     </div>
   </header>
 
-  <div style="max-width:1240px;margin:0 auto;padding:20px">
+  <div class="m-wrap" style="max-width:1240px;margin:0 auto;padding:20px">
 
     <!-- ================= LOGIN GATE (owner) ================= -->
     <sc-if value="{{ showLogin }}" hint-placeholder-val="{{ false }}">
@@ -120,8 +136,8 @@
     <div>
 
     <!-- CONTROL ROW -->
-    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
-      <div style="display:flex;background:#fff;border:1px solid #e5e9ee;border-radius:10px;padding:4px;gap:4px">
+    <div class="m-ctrl" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:18px">
+      <div class="m-tabs" style="display:flex;background:#fff;border:1px solid #e5e9ee;border-radius:10px;padding:4px;gap:4px">
         <button onClick="{{ setViewSummary }}" style="{{ tabSummaryStyle }}">📊&nbsp; สรุปยอด</button>
         <button onClick="{{ setViewSales }}" style="{{ tabSalesStyle }}">🧾&nbsp; บันทึกการขาย</button>
         <button onClick="{{ setViewCustomers }}" style="{{ tabCustomersStyle }}">👥&nbsp; ลูกค้า</button>
