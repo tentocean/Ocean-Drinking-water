@@ -723,6 +723,7 @@
                   <sc-if value="{{ cust.hasDebt }}" hint-placeholder-val="{{ false }}">
                     <button onClick="{{ payAllCust }}" title="รับชำระยอดค้างทั้งหมดในครั้งเดียว" style="border:1px solid #f2d9b8;background:#fdf1e3;color:#b45309;cursor:pointer;border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600">💵 รับชำระยอดค้าง</button>
                   </sc-if>
+                  <button onClick="{{ deleteCustomer }}" title="{{ cust.deleteHint }}" style="{{ cust.deleteStyle }}">🗑 ลบลูกค้า</button>
                 </div>
                 <div style="font-size:12.5px;color:#6b7787;margin-top:3px">📍 {{ cust.address }} &nbsp;•&nbsp; 📞 {{ cust.phone }}</div>
                 <div style="font-size:12.5px;color:#6b7787;margin-top:2px">🧾 เลขผู้เสียภาษี: <span class="mono">{{ cust.taxId }}</span></div>
@@ -1788,11 +1789,16 @@ class Component extends DCLogic {
     if (sel) {
       const hist = st.sales.filter(s => s.customerId === sel.id && crIn(s.date)).sort((a, b) => b.date < a.date ? -1 : 1);
       const out = st.sales.filter(s => s.customerId === sel.id && !s.paid && crIn(s.date)).reduce((a, s) => a + s.total, 0);
+      const salesEver = st.sales.filter(s => s.customerId === sel.id).length;  // ignores the date filter
       V.cust = {
         name: sel.name, phone: sel.phone, address: sel.address, taxId: sel.taxId || '—', contact: sel.contact || '', hasContact: !!sel.contact, employeeName: this.empName(sel.employeeId),
         initial: sel.name.replace(/^(ร้าน|บริษัท|โรงเรียน|โรงงาน|คลินิก|หอพัก|แผง|แคนทีน)/, '').trim().slice(0, 1) || sel.name.slice(0, 1),
         orderCount: hist.length, totalBoughtF: this.fmt(hist.reduce((a, s) => a + s.total, 0)),
         outstandingF: this.fmt(out), outColor: out > 0 ? '#b45309' : '#157a52', hasDebt: out > 0,
+        // deletable only when the customer has no sales at all (any date) — deleting one with
+        // history would drop its past revenue out of the summary and P&L.
+        deleteHint: salesEver > 0 ? ('ลบไม่ได้ — มีประวัติการขาย ' + salesEver + ' รายการ') : 'ลบลูกค้ารายนี้',
+        deleteStyle: 'border:1px solid ' + (salesEver > 0 ? '#e4e8ec;background:#f5f7f9;color:#a6afb8;cursor:not-allowed' : '#f0c9c9;background:#fdf0f0;color:#b23b3b;cursor:pointer') + ';border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600',
         history: hist.map(s => ({
           dateF: this.fmtDate(s.date), typeLabel: this.typeLabel(s.type), qty: s.qty, totalF: this.fmt(s.total),
           paid: s.paid, unpaid: !s.paid,
@@ -1947,6 +1953,7 @@ class Component extends DCLogic {
     V.saveCustomer = () => this.saveCustomer();
     V.cancelCustEdit = () => this.setState({ custEdit: null });
     V.editCustomer = () => { const c = st.customers.find(x => x.id === st.selectedCustomerId); if (c) this.setState({ custEdit: { ...c } }); };
+    V.deleteCustomer = () => this.deleteCustomer();
     V.payAllCust = () => { if (st.selectedCustomerId) this.openBulkPay(st.selectedCustomerId); };
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
     V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id } });
@@ -2193,6 +2200,22 @@ class Component extends DCLogic {
       if (error) { console.error('saveCustomer (update) failed', error); return; }
       this.setState({ custEdit: null });
     }
+    await this.loadData();
+  }
+  async deleteCustomer() {
+    const sel = this.state.customers.find(c => c.id === this.state.selectedCustomerId);
+    if (!sel) return;
+    // Refuse when the customer has any sales — removing them would drop that revenue
+    // out of the summary and P&L. (The DB's foreign key would reject it anyway.)
+    const salesEver = this.state.sales.filter(s => s.customerId === sel.id).length;
+    if (salesEver > 0) {
+      window.alert('ลบ "' + sel.name + '" ไม่ได้\n\nลูกค้ารายนี้มีประวัติการขาย ' + salesEver + ' รายการ ถ้าลบออก ยอดขายเก่าจะหายไปจากสรุปยอดและงบกำไรขาดทุนด้วย');
+      return;
+    }
+    if (!window.confirm('ลบลูกค้า "' + sel.name + '" ?\n\nลูกค้ารายนี้ยังไม่มีประวัติการขาย จึงลบได้โดยไม่กระทบยอดขาย')) return;
+    const { error } = await supabase.from('customers').delete().eq('id', sel.id);
+    if (error) { console.error('deleteCustomer failed', error); window.alert('ลบไม่สำเร็จ: ' + error.message); return; }
+    this.setState({ selectedCustomerId: null });
     await this.loadData();
   }
   async confirmPay() {
