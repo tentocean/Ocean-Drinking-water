@@ -47,6 +47,16 @@
     .m-hist tbody tr{ display:block; padding:10px 16px; border-top:1px solid #eef2f5; }
     .m-hist tbody td{ display:flex !important; align-items:center; justify-content:space-between; gap:12px; padding:4px 0 !important; text-align:right !important; }
     .m-hist tbody td::before{ content:attr(data-label); color:#8a94a0; font-weight:500; white-space:nowrap; text-align:left; }
+    /* sales entry: fit each line item on one screen (no sideways scroll) */
+    .m-salebox{ min-width:0 !important; }
+    .m-salehead{ display:none !important; }         /* column header not needed; inputs are labelled */
+    .m-saleline{ grid-template-columns:1fr 1fr !important;
+      grid-template-areas:'type type' 'qty price' 'total remove' !important; }
+    .m-saleline > *:nth-child(1){ grid-area:type; }
+    .m-saleline > *:nth-child(2){ grid-area:qty; }
+    .m-saleline > *:nth-child(3){ grid-area:price; }
+    .m-saleline > *:nth-child(4){ grid-area:total; align-self:center; }
+    .m-saleline > *:nth-child(5){ grid-area:remove; justify-self:end; align-self:center; }
   }
 
   @page{ size:A4; margin:0 }
@@ -556,18 +566,18 @@
 
         <!-- line items -->
         <div style="border:1px solid #eef2f5;border-radius:10px;overflow-x:auto;margin-bottom:14px">
-          <div style="min-width:460px">
-            <div style="display:grid;grid-template-columns:1fr 84px 100px 108px 34px;gap:8px;padding:9px 12px;background:#f7f9fb;font-size:11.5px;color:#6b7787;font-weight:600">
+          <div class="m-salebox" style="min-width:460px">
+            <div class="m-salehead" style="display:grid;grid-template-columns:1fr 84px 100px 108px 34px;gap:8px;padding:9px 12px;background:#f7f9fb;font-size:11.5px;color:#6b7787;font-weight:600">
               <div>ประเภทน้ำดื่ม</div><div style="text-align:right">จำนวน</div><div style="text-align:right">ราคา/หน่วย</div><div style="text-align:right">ยอดรวม</div><div></div>
             </div>
             <sc-for list="{{ saleLines }}" as="l" hint-placeholder-count="1">
-              <div style="display:grid;grid-template-columns:1fr 84px 100px 108px 34px;gap:8px;padding:8px 12px;border-top:1px solid #f2f5f7;align-items:center">
+              <div class="m-saleline" style="display:grid;grid-template-columns:1fr 84px 100px 108px 34px;gap:8px;padding:8px 12px;border-top:1px solid #f2f5f7;align-items:center">
                 <select value="{{ l.type }}" onChange="{{ l.onType }}" style="padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;background:#fff">
                   <sc-for list="{{ types }}" as="t" hint-placeholder-count="4"><option value="{{ t.key }}">{{ t.label }}</option></sc-for>
                 </select>
-                <input value="{{ l.qty }}" onChange="{{ l.onQty }}" inputmode="numeric" style="padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
+                <input value="{{ l.qty }}" onChange="{{ l.onQty }}" inputmode="numeric" placeholder="จำนวน" style="padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
                 <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-                  <input value="{{ l.price }}" onChange="{{ l.onPrice }}" inputmode="numeric" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
+                  <input value="{{ l.price }}" onChange="{{ l.onPrice }}" inputmode="numeric" placeholder="ราคา/หน่วย" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
                   <sc-if value="{{ l.hasPresets }}" hint-placeholder-val="{{ false }}">
                     <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
                       <sc-for list="{{ l.pricePresets }}" as="p" hint-placeholder-count="2"><button onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</button></sc-for>
@@ -1336,7 +1346,7 @@ class Component extends DCLogic {
     search: '', selectedCustomerId: null, suggestOpen: false, payModal: null, slipView: null, invoiceOrder: null, custEdit: null,
     typeFilter: 'all', expFilter: 'all', plPeriod: 'month', facPeriod: 'month',
     custRange: 'all', custFrom: '', custTo: '',
-    saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '10', price: '35' }] },
+    saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] },
     expForm: { category: 'ค่าน้ำมัน', amount: '', note: '' },
     facForm: { cat: 'cap', variant: '', qty: '', unitPrice: '', total: '', note: '' },
   };
@@ -2118,7 +2128,7 @@ class Component extends DCLogic {
   }
   setLineType(i, key) { const t = this.TYPES.find(x => x.key === key); this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.map((l, idx) => idx === i ? { ...l, type: key, price: String(t.price) } : l) } })); }
   updateLine(i, field, val) { this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l) } })); }
-  addLine() { this.setState(s => ({ saleForm: { ...s.saleForm, lines: [...s.saleForm.lines, { type: '18.9L', qty: '1', price: '35' }] } })); }
+  addLine() { this.setState(s => ({ saleForm: { ...s.saleForm, lines: [...s.saleForm.lines, { type: '18.9L', qty: '', price: '35' }] } })); }
   removeLine(i) { this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.length > 1 ? s.saleForm.lines.filter((_, idx) => idx !== i) : s.saleForm.lines } })); }
   pickCust(id, name) { this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: id, customerQuery: name } })); }
   readSlip(e, target) {
@@ -2143,7 +2153,7 @@ class Component extends DCLogic {
     const rows = lines.map(l => ({ group_id: gid, sale_date: date, employee_id: empId, customer_id: sf.customerId, type: l.type, qty: l.qty, price: l.price, total: l.qty * l.price, method: sf.method, paid, paid_date: paid ? date : null, slip_url: sf.method === 'transfer' ? slipPath : null }));
     const { error } = await supabase.from('sales').insert(rows);
     if (error) { console.error('addSale failed', error); return; }
-    this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '10', price: '35' }] } }));
+    this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] } }));
     await this.loadData();
   }
   async deleteSale(id) {
