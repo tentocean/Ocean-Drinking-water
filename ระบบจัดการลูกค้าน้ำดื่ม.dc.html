@@ -34,6 +34,12 @@
     .m-who{ margin-left:auto; }
     .m-tabs{ width:100%; align-items:stretch; }  /* tabs fill the width, all visible */
     .m-tabs button{ flex:1 1 0; min-width:0; padding:8px 4px !important; font-size:12px !important; line-height:1.2; white-space:normal !important; text-align:center; min-height:44px; }
+    /* customers tab: stack list on top, selected-customer history below the search */
+    .m-cust{ grid-template-columns:1fr !important; }
+    .m-custlist{ max-height:300px !important; }   /* keep list short so history is reachable */
+    .m-custsub{ display:none !important; }         /* single-line customer name in the list */
+    .m-custhead{ flex-wrap:wrap; }                 /* customer name on its own line, buttons below */
+    .m-custhead > div:first-child{ width:100%; }
   }
 
   @page{ size:A4; margin:0 }
@@ -666,7 +672,7 @@
 
     <!-- ========== VIEW: CUSTOMERS ========== -->
     <sc-if value="{{ isCustomers }}" hint-placeholder-val="{{ false }}">
-    <div data-screen-label="Customers" style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
+    <div data-screen-label="Customers" class="m-cust" style="display:grid;grid-template-columns:minmax(280px,360px) 1fr;gap:16px;align-items:start">
       <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;overflow:hidden">
         <div style="padding:14px 16px;border-bottom:1px solid #eef2f5;display:flex;gap:8px;align-items:center">
           <div style="position:relative;flex:1">
@@ -675,14 +681,14 @@
           </div>
           <button onClick="{{ addCustomer }}" title="เพิ่มลูกค้าใหม่" style="border:none;background:#123a5e;color:#fff;border-radius:9px;padding:9px 13px;font-size:13.5px;font-weight:600;cursor:pointer;white-space:nowrap">+ ลูกค้า</button>
         </div>
-        <div style="max-height:560px;overflow-y:auto">
+        <div class="m-custlist" style="max-height:560px;overflow-y:auto">
           <sc-for list="{{ customerList }}" as="c" hint-placeholder-count="8">
             <div onClick="{{ c.onSelect }}" style="{{ c.rowStyle }}">
               <div style="display:flex;align-items:center;gap:10px">
                 <div style="width:34px;height:34px;border-radius:9px;background:{{ c.avatarBg }};color:#fff;display:flex;align-items:center;justify-content:center;font-size:13px;font-weight:600">{{ c.initial }}</div>
                 <div style="min-width:0;flex:1">
                   <div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</div>
-                  <div style="font-size:11.5px;color:#8a94a0">{{ c.employeeName }}</div>
+                  <div class="m-custsub" style="font-size:11.5px;color:#8a94a0">{{ c.employeeName }}</div>
                 </div>
                 <sc-if value="{{ c.hasDebt }}" hint-placeholder-val="{{ false }}">
                   <span class="mono" style="font-size:11.5px;padding:2px 8px;border-radius:20px;background:#fdf1e3;color:#b45309;white-space:nowrap">ค้าง {{ c.outstandingF }}</span>
@@ -703,7 +709,7 @@
             <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
               <div style="width:48px;height:48px;border-radius:12px;background:#123a5e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600">{{ cust.initial }}</div>
               <div style="flex:1;min-width:180px">
-                <div style="display:flex;align-items:center;gap:10px">
+                <div class="m-custhead" style="display:flex;align-items:center;gap:10px">
                   <div style="font-size:18px;font-weight:700">{{ cust.name }}</div>
                   <button onClick="{{ editCustomer }}" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600">✏️ แก้ไขข้อมูล</button>
                   <button onClick="{{ invoiceCustomerRange }}" title="ออกใบกำกับภาษีตามช่วงเวลาที่เลือก" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600">🧾 ออกใบกำกับภาษี</button>
