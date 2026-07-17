@@ -57,6 +57,9 @@
     .m-saleline > *:nth-child(3){ grid-area:price; }
     .m-saleline > *:nth-child(4){ grid-area:total; align-self:center; }
     .m-saleline > *:nth-child(5){ grid-area:remove; justify-self:end; align-self:center; }
+    /* iOS Safari zooms the whole page in whenever a focused field is under 16px.
+       Forcing 16px on mobile keeps tapping a field from shifting the screen. */
+    input, select, textarea{ font-size:16px !important; }
   }
 
   @page{ size:A4; margin:0 }
