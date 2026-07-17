@@ -1656,12 +1656,20 @@ class Component extends DCLogic {
       const dayExp = st.expenses.filter(e => e.employeeId === focusEmp.id && e.date >= R.a && e.date <= R.b && (st.expFilter === 'all' || e.category === st.expFilter)).sort((a, b) => a.date < b.date ? 1 : -1);
       const cashQ18 = st.sales.filter(s => s.employeeId === focusEmp.id && s.date >= R.a && s.date <= R.b && s.type === '18.9L' && s.paid && s.method === 'cash').reduce((a, s) => a + s.qty, 0);
       const payC = this.payCalc(this.typeBreakdown(focusEmp.id, R.a, R.b), focusEmp.id, cashQ18);
+      // Employees see how much they sold (ถัง/แพ็ค) but not the baht they earned —
+      // only the owner sees the wage/commission amounts. Values stay in payC so the
+      // net-profit maths below is unaffected; this only masks the display.
+      const payView = isOwner ? payC : {
+        ...payC,
+        rows: payC.rows.map(r => ({ ...r, valueF: '—', valColor: '#a6afb8' })),
+        totalF: '—',
+      };
       const remit = m.profit;
       const netProfit = m.sales - m.exp - payC.total;
       const debtColl = st.sales.filter(s => s.employeeId === focusEmp.id && s.paid && s.paidDate && s.paidDate >= R.a && s.paidDate <= R.b && s.paidDate > s.date).sort((x, y) => x.paidDate < y.paidDate ? -1 : 1);
       V.det = {
         name: focusEmp.name, isDay,
-        pay: payC,
+        pay: payView,
         hasDebtCollected: debtColl.length > 0,
         debtCollectedCount: debtColl.length,
         debtCollectedTotalF: this.fmt(debtColl.reduce((a, s) => a + s.total, 0)),
