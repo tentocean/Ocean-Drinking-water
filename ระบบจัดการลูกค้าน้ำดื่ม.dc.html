@@ -10,7 +10,7 @@
 <helmet data-dc-atomics>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Thai:wght@300;400;500;600;700&family=IBM+Plex+Mono:wght@400;500&family=Trirong:wght@400;500;600&display=swap" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <style>
   *{box-sizing:border-box}
@@ -67,7 +67,7 @@
     html, body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; background:#fff !important }
     body *{ visibility:hidden !important }
     #tax-invoice, #tax-invoice *{ visibility:visible !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important }
-    #tax-invoice{ position:absolute !important;left:0;top:0;width:210mm !important;height:297mm !important;margin:0 !important;padding:0 !important;box-shadow:none;border-radius:0;overflow:hidden }
+    #tax-invoice{ position:absolute !important;left:0;top:0;width:210mm !important;height:297mm !important;margin:0 !important;padding:0 !important;box-shadow:none;border-radius:0;overflow:hidden;background:#fff !important }
     #tax-invoice .no-break{ break-inside:avoid;page-break-inside:avoid }
     #tax-invoice table{ break-inside:auto }
     #tax-invoice tr{ break-inside:avoid;page-break-inside:avoid }
@@ -1145,139 +1145,114 @@
           <button onClick="{{ printInvoice }}" style="padding:9px 18px;background:#123a5e;color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer">🖨 พิมพ์ / บันทึก PDF</button>
         </div>
       </div>
-      <div id="tax-invoice" style="position:relative;background:#fff;color:#222;width:794px;max-width:100%;min-height:1123px;margin:0 auto;box-sizing:border-box;padding:0;border-radius:8px;overflow:hidden;font-size:13px;line-height:1.55;display:flex;flex-direction:column">
+      <div id="tax-invoice" style="position:relative;background:#fbf1ea;color:#1c1c1c;width:794px;max-width:100%;min-height:1123px;margin:0 auto;box-sizing:border-box;padding:0;border-radius:8px;overflow:hidden;font-size:13px;line-height:1.55;display:flex;flex-direction:column">
 
-        <div style="flex:1;display:flex;flex-direction:column;padding:46px 46px 36px">
+        <div style="flex:1;display:flex;flex-direction:column;padding:52px 52px 40px">
 
           <!-- ===== HEADER ===== -->
-          <div class="no-break" style="display:flex;justify-content:space-between;align-items:flex-start;gap:24px">
-            <div style="display:flex;gap:14px;align-items:flex-start">
-              <img src="assets/logo.png?v=2" style="width:64px;height:64px;object-fit:contain;flex-shrink:0;filter:grayscale(1)" />
-              <div>
-                <div style="font-size:16px;font-weight:700;color:#111;letter-spacing:.01em">{{ seller.name }}</div>
-                <div style="font-size:11px;color:#666;margin-top:4px;max-width:330px;line-height:1.55">{{ seller.address }}</div>
-              </div>
+          <div class="no-break" style="display:flex;justify-content:space-between;align-items:center;gap:24px">
+            <div style="display:flex;gap:13px;align-items:center">
+              <img src="assets/logo.png?v=2" style="width:56px;height:56px;object-fit:contain;flex-shrink:0;filter:grayscale(1)" />
+              <div style="font-size:17px;font-weight:600;color:#1c1c1c;letter-spacing:.01em;line-height:1.25;max-width:190px">{{ seller.name }}</div>
             </div>
-            <div style="text-align:right;min-width:230px">
-              <div style="font-size:20px;font-weight:700;color:#111;line-height:1.2;letter-spacing:.01em">{{ inv.docTitle }}</div>
-              <div style="font-size:10px;color:#888;letter-spacing:.16em;margin-top:5px;text-transform:uppercase">{{ inv.docSub }}</div>
+            <div style="text-align:right;max-width:300px">
+              <div style="font-family:'Trirong',serif;font-size:38px;font-weight:500;color:#1c1c1c;line-height:1.06;letter-spacing:.01em">{{ inv.docTitle }}</div>
+              <div style="font-size:10px;color:#8a7d70;letter-spacing:.18em;margin-top:6px;text-transform:uppercase">{{ inv.docSub }}</div>
             </div>
           </div>
-          <div style="border-bottom:2px solid #111;margin-top:16px"></div>
 
-          <!-- ===== META ROW ===== -->
-          <div class="no-break" style="display:flex;margin-top:14px">
-            <div style="flex:1;padding-right:20px">
-              <div style="font-size:9.5px;color:#888;letter-spacing:.08em;text-transform:uppercase">เลขที่เอกสาร</div>
-              <div class="mono" style="font-size:13px;font-weight:700;color:#111;margin-top:3px">{{ inv.docNo }}</div>
-            </div>
-            <div style="flex:1;padding:0 20px;border-left:1px solid #e5e5e5">
-              <div style="font-size:9.5px;color:#888;letter-spacing:.08em;text-transform:uppercase">วันที่เอกสาร</div>
-              <div style="font-size:13px;font-weight:700;color:#111;margin-top:3px">{{ inv.docDateF }}</div>
-              <sc-if value="{{ inv.isRange }}" hint-placeholder-val="{{ false }}"><div style="font-size:10px;color:#999;margin-top:2px">ช่วงบิล {{ inv.dateF }}</div></sc-if>
-            </div>
-            <div style="flex:1;padding-left:20px;border-left:1px solid #e5e5e5">
-              <div style="font-size:9.5px;color:#888;letter-spacing:.08em;text-transform:uppercase">ผู้ขาย / สาขา</div>
-              <div style="font-size:12px;font-weight:600;color:#222;margin-top:3px">{{ seller.branch }}</div>
-              <div style="font-size:10px;color:#999;margin-top:1px">เลขผู้เสียภาษี {{ seller.taxId }}</div>
-            </div>
-          </div>
-          <div style="border-bottom:1px solid #e5e5e5;margin-top:14px"></div>
-
-          <!-- ===== CUSTOMER + AMOUNT DUE ===== -->
-          <div class="no-break" style="display:flex;justify-content:space-between;align-items:flex-start;gap:26px;margin:18px 0 22px">
+          <!-- ===== BILLED TO + META ===== -->
+          <div class="no-break" style="display:flex;justify-content:space-between;align-items:flex-start;gap:26px;margin-top:34px">
             <div style="flex:1">
-              <div style="font-size:10px;font-weight:700;color:#111;letter-spacing:.12em;text-transform:uppercase;margin-bottom:9px">ลูกค้า / ผู้ซื้อ</div>
-              <table style="border-collapse:collapse;font-size:12px">
-                <tr><td style="color:#888;padding:3px 16px 3px 0;vertical-align:top;white-space:nowrap">ชื่อ</td><td style="font-weight:600;color:#111;padding:3px 0">{{ inv.custName }}</td></tr>
-                <tr><td style="color:#888;padding:3px 16px 3px 0;vertical-align:top;white-space:nowrap">โทร</td><td style="color:#333;padding:3px 0">{{ inv.custPhone }}</td></tr>
-                <tr><td style="color:#888;padding:3px 16px 3px 0;vertical-align:top;white-space:nowrap">ที่อยู่</td><td style="color:#333;padding:3px 0">{{ inv.custAddr }}</td></tr>
-                <tr><td style="color:#888;padding:3px 16px 3px 0;vertical-align:top;white-space:nowrap">เลขภาษี</td><td style="color:#333;padding:3px 0">{{ inv.custTaxId }}</td></tr>
-              </table>
+              <div style="font-size:11px;font-weight:600;letter-spacing:.14em;text-transform:uppercase;color:#1c1c1c">เรียน / ลูกค้า</div>
+              <div style="font-size:15px;font-weight:600;color:#1c1c1c;margin-top:9px">{{ inv.custName }}</div>
+              <div style="font-size:11.5px;color:#5a5049;margin-top:3px;line-height:1.6">{{ inv.custAddr }}</div>
+              <div style="font-size:11.5px;color:#5a5049;line-height:1.6">โทร. {{ inv.custPhone }} · เลขภาษี {{ inv.custTaxId }}</div>
             </div>
-            <div style="border:1.5px solid #111;padding:11px 20px;text-align:right;flex-shrink:0;min-width:180px">
-              <div style="font-size:10px;color:#666;letter-spacing:.1em;text-transform:uppercase">ยอดที่ต้องชำระ</div>
-              <div class="mono" style="font-size:23px;font-weight:700;color:#111;line-height:1.1;margin-top:4px">{{ inv.grandF }}</div>
-              <div style="font-size:9.5px;color:#888;margin-top:3px">รวมภาษีมูลค่าเพิ่มแล้ว</div>
+            <div style="text-align:right;flex-shrink:0;font-size:12px;color:#3a3128;line-height:1.9">
+              <div>วันที่ : {{ inv.docDateF }}</div>
+              <div>เลขที่เอกสาร : <span class="mono">{{ inv.docNo }}</span></div>
+              <div style="color:#8a7d70">{{ seller.branch }} · เลขภาษี {{ seller.taxId }}</div>
+              <sc-if value="{{ inv.isRange }}" hint-placeholder-val="{{ false }}"><div style="font-size:10.5px;color:#8a7d70">ช่วงบิล {{ inv.dateF }}</div></sc-if>
             </div>
           </div>
 
           <!-- ===== ITEMS ===== -->
+          <div style="border-top:1px solid #1c1c1c;margin-top:26px"></div>
           <table style="width:100%;border-collapse:collapse;font-size:12.5px">
             <thead>
-              <tr style="color:#111;border-top:1.5px solid #111;border-bottom:1.5px solid #111">
-                <th style="padding:9px 8px;text-align:center;width:42px;font-weight:700">ลำดับ</th>
-                <th style="padding:9px 8px;text-align:left;font-weight:700">รายการ</th>
-                <th style="padding:9px 8px;text-align:right;width:64px;font-weight:700">จำนวน</th>
-                <th style="padding:9px 8px;text-align:right;width:100px;font-weight:700">ราคา/หน่วย</th>
-                <th style="padding:9px 8px;text-align:right;width:110px;font-weight:700">จำนวนเงิน</th>
+              <tr style="font-size:11px;font-weight:600;letter-spacing:.1em;color:#1c1c1c">
+                <th style="padding:16px 4px 13px;text-align:left">รายการ</th>
+                <th style="padding:16px 4px 13px;text-align:right;width:110px">ราคา/หน่วย</th>
+                <th style="padding:16px 8px 13px;text-align:center;width:70px">จำนวน</th>
+                <th style="padding:16px 4px 13px;text-align:right;width:120px">จำนวนเงิน</th>
               </tr>
             </thead>
             <tbody>
               <sc-for list="{{ inv.items }}" as="it" hint-placeholder-count="2">
-                <tr style="border-bottom:1px solid #ececec">
-                  <td style="padding:10px 8px;text-align:center;color:#999">{{ it.no }}</td>
-                  <td style="padding:10px 8px;text-align:left;color:#222">{{ it.label }}</td>
-                  <td style="padding:10px 8px;text-align:right" class="mono">{{ it.qty }}</td>
-                  <td style="padding:10px 8px;text-align:right" class="mono">{{ it.priceF }}</td>
-                  <td style="padding:10px 8px;text-align:right;font-weight:600;color:#111" class="mono">{{ it.amountF }}</td>
+                <tr>
+                  <td style="padding:14px 4px;text-align:left;color:#2a231c;border-top:1px solid #dccbbd">{{ it.label }}</td>
+                  <td style="padding:14px 4px;text-align:right;border-top:1px solid #dccbbd" class="mono">{{ it.priceF }}</td>
+                  <td style="padding:14px 8px;text-align:center;border-top:1px solid #dccbbd" class="mono">{{ it.qty }}</td>
+                  <td style="padding:14px 4px;text-align:right;font-weight:600;color:#1c1c1c;border-top:1px solid #dccbbd" class="mono">{{ it.amountF }}</td>
                 </tr>
               </sc-for>
             </tbody>
           </table>
 
-          <!-- flexible spacer pushes footer content toward the page bottom -->
-          <div style="flex:1;min-height:30px"></div>
-
-          <!-- ===== PAYMENT + TOTALS ===== -->
-          <div class="no-break" style="display:flex;justify-content:space-between;gap:34px;align-items:flex-start">
-            <div style="flex:1">
-              <div style="font-size:10px;font-weight:700;color:#111;letter-spacing:.1em;text-transform:uppercase;margin-bottom:7px">ช่องทางการชำระเงิน</div>
-              <div style="font-size:11px;color:#333;line-height:1.75">
-                <div>ชื่อบัญชี {{ inv.bank.name }}</div>
-                <div>เลขที่บัญชี <b style="color:#111">{{ inv.bank.acct }}</b></div>
-                <div>{{ inv.bank.bank }} · สาขา {{ inv.bank.branch }}</div>
-              </div>
-              <div style="font-size:10.5px;color:#888;line-height:1.7;margin-top:9px">
-                <sc-for list="{{ inv.payNotify }}" as="p" hint-placeholder-count="4"><div>{{ p }}</div></sc-for>
-              </div>
-            </div>
-            <div style="width:280px;flex-shrink:0">
-              <div class="mono" style="font-size:12.5px">
-                <div style="display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid #ececec"><span style="font-family:'IBM Plex Sans Thai';color:#666">มูลค่าสินค้า</span><span style="color:#222">{{ inv.baseF }}</span></div>
-                <div style="display:flex;justify-content:space-between;padding:6px 2px;border-bottom:1px solid #ececec"><span style="font-family:'IBM Plex Sans Thai';color:#666">ภาษีมูลค่าเพิ่ม 7%</span><span style="color:#222">{{ inv.vatF }}</span></div>
-                <div style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;margin-top:9px;font-weight:700;color:#fff;background:#111"><span style="font-family:'IBM Plex Sans Thai';font-size:13px">รวมทั้งสิ้น</span><span style="font-size:15px">{{ inv.grandF }}</span></div>
-              </div>
-              <div style="font-size:10.5px;color:#666;border:1px solid #ddd;padding:8px 11px;margin-top:10px;text-align:center">จำนวนเงิน (ตัวอักษร)<br><b style="color:#111;font-size:11px">({{ inv.words }})</b></div>
+          <!-- ===== TOTALS ===== -->
+          <div class="no-break" style="display:flex;justify-content:flex-end;margin-top:2px">
+            <div style="width:290px;font-size:12.5px">
+              <div style="border-top:1px solid #1c1c1c;padding-top:12px"></div>
+              <div style="display:flex;justify-content:space-between;padding:5px 0;color:#5a5049"><span>มูลค่าสินค้า</span><span class="mono">{{ inv.baseF }}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:5px 0;color:#5a5049"><span>ภาษีมูลค่าเพิ่ม 7%</span><span class="mono">{{ inv.vatF }}</span></div>
+              <div style="border-top:1px solid #1c1c1c;margin-top:11px;padding-top:13px;display:flex;justify-content:space-between;align-items:baseline;font-weight:600"><span style="font-size:15px;letter-spacing:.06em">รวมทั้งสิ้น</span><span class="mono" style="font-size:18px">{{ inv.grandF }}</span></div>
             </div>
           </div>
+          <div style="font-size:11px;color:#5a5049;margin-top:12px;text-align:right">จำนวนเงิน (ตัวอักษร) : <b style="color:#1c1c1c">({{ inv.words }})</b></div>
+
+          <!-- flexible spacer pushes footer content toward the page bottom -->
+          <div style="flex:1;min-height:34px"></div>
 
           <!-- ===== SIGNATURES ===== -->
           <sc-if value="{{ inv.showReceiver }}" hint-placeholder-val="{{ false }}">
-            <div class="no-break" style="display:flex;justify-content:space-between;gap:30px;margin-top:34px;font-size:11.5px;color:#333;text-align:center">
-              <div style="flex:1"><div style="border-top:1px solid #999;padding-top:7px;margin:0 12px">ผู้รับสินค้า / ผู้ซื้อ</div></div>
-              <div style="flex:1"><div style="border-top:1px solid #999;padding-top:7px;margin:0 12px">ผู้รับเงิน<div style="margin-top:3px;color:#999;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
+            <div class="no-break" style="display:flex;justify-content:space-between;gap:40px;margin-top:8px;margin-bottom:24px;font-size:11.5px;color:#5a5049;text-align:center">
+              <div style="flex:1"><div style="border-top:1px solid #b6a494;padding-top:8px;margin:0 14px">ผู้รับสินค้า / ผู้ซื้อ</div></div>
+              <div style="flex:1"><div style="border-top:1px solid #b6a494;padding-top:8px;margin:0 14px">ผู้รับเงิน<div style="margin-top:3px;color:#8a7d70;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
             </div>
           </sc-if>
           <sc-if value="{{ inv.isDelivery }}" hint-placeholder-val="{{ false }}">
-            <div class="no-break" style="display:flex;justify-content:space-between;gap:30px;margin-top:34px;font-size:11.5px;color:#333;text-align:center">
-              <div style="flex:1"><div style="border-top:1px solid #999;padding-top:7px;margin:0 12px">ผู้อนุมัติ<div style="margin-top:3px;color:#999;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
-              <div style="flex:1"><div style="border-top:1px solid #999;padding-top:7px;margin:0 12px">ผู้รับสินค้า<div style="margin-top:3px;color:#999;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
+            <div class="no-break" style="display:flex;justify-content:space-between;gap:40px;margin-top:8px;margin-bottom:24px;font-size:11.5px;color:#5a5049;text-align:center">
+              <div style="flex:1"><div style="border-top:1px solid #b6a494;padding-top:8px;margin:0 14px">ผู้อนุมัติ<div style="margin-top:3px;color:#8a7d70;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
+              <div style="flex:1"><div style="border-top:1px solid #b6a494;padding-top:8px;margin:0 14px">ผู้รับสินค้า<div style="margin-top:3px;color:#8a7d70;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
             </div>
           </sc-if>
           <sc-if value="{{ inv.isBilling }}" hint-placeholder-val="{{ false }}">
-            <div class="no-break" style="display:flex;justify-content:space-between;gap:30px;margin-top:34px;font-size:11.5px;color:#333;text-align:center">
-              <div style="flex:1"><div style="border-top:1px solid #999;padding-top:7px;margin:0 12px">ผู้วางบิล<div style="margin-top:3px;color:#999;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
-              <div style="flex:1"><div style="border-top:1px solid #999;padding-top:7px;margin:0 12px">ผู้รับวางบิล<div style="margin-top:3px;color:#999;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
+            <div class="no-break" style="display:flex;justify-content:space-between;gap:40px;margin-top:8px;margin-bottom:24px;font-size:11.5px;color:#5a5049;text-align:center">
+              <div style="flex:1"><div style="border-top:1px solid #b6a494;padding-top:8px;margin:0 14px">ผู้วางบิล<div style="margin-top:3px;color:#8a7d70;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
+              <div style="flex:1"><div style="border-top:1px solid #b6a494;padding-top:8px;margin:0 14px">ผู้รับวางบิล<div style="margin-top:3px;color:#8a7d70;font-size:10.5px">วันที่ {{ inv.docDateF }}</div></div></div>
             </div>
           </sc-if>
 
-          <!-- ===== CONTACT + THANK YOU ===== -->
-          <div class="no-break" style="margin-top:26px;border-top:1px solid #e5e5e5;padding-top:12px;text-align:center;font-size:10.5px;color:#777;line-height:1.7">
-            <div>{{ seller.address }}</div>
-            <div>โทร. {{ seller.phone }}</div>
+          <!-- ===== PAYMENT INFO ===== -->
+          <div class="no-break" style="border-top:1px solid #dccbbd;padding-top:20px">
+            <div style="font-family:'Trirong',serif;font-size:22px;font-weight:500;color:#1c1c1c;margin-bottom:12px">ข้อมูลการชำระเงิน</div>
+            <div style="display:flex;justify-content:space-between;gap:26px;flex-wrap:wrap;align-items:flex-start">
+              <div style="font-size:11.5px;line-height:1.85">
+                <div style="font-weight:600;color:#1c1c1c">ชื่อบัญชี {{ inv.bank.name }}</div>
+                <div style="color:#5a5049">{{ inv.bank.bank }} · สาขา {{ inv.bank.branch }}</div>
+                <div style="color:#5a5049">เลขที่บัญชี <b style="color:#1c1c1c">{{ inv.bank.acct }}</b></div>
+                <div style="color:#8a7d70;margin-top:6px;line-height:1.65">
+                  <sc-for list="{{ inv.payNotify }}" as="p" hint-placeholder-count="4"><div>{{ p }}</div></sc-for>
+                </div>
+              </div>
+              <div style="font-size:11.5px;line-height:1.85;color:#3a3128;text-align:right;max-width:280px">
+                <div>โทร. {{ seller.phone }}</div>
+                <div>{{ seller.address }}</div>
+                <div style="color:#8a7d70;margin-top:6px;letter-spacing:.04em">ขอบคุณที่ใช้บริการ · OCEAN Drinking Water</div>
+              </div>
+            </div>
           </div>
-          <div class="no-break" style="text-align:center;font-size:11.5px;color:#111;letter-spacing:.06em;margin-top:10px">ขอบคุณที่ใช้บริการ · OCEAN Drinking Water</div>
         </div>
       </div>
     </div>
