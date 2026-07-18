@@ -2215,12 +2215,12 @@ class Component extends DCLogic {
     if (ce.id == null) {
       const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
       const { data, error } = await supabase.from('customers').insert(row).select().single();
-      if (error) { console.error('saveCustomer (insert) failed', error); return; }
+      if (error) { console.error('saveCustomer (insert) failed', error); window.alert('เพิ่มลูกค้าไม่สำเร็จ: ' + error.message); return; }
       this.setState({ custEdit: null, selectedCustomerId: data.id });
     } else {
       const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
       const { error } = await supabase.from('customers').update(row).eq('id', ce.id);
-      if (error) { console.error('saveCustomer (update) failed', error); return; }
+      if (error) { console.error('saveCustomer (update) failed', error); window.alert('บันทึกลูกค้าไม่สำเร็จ: ' + error.message); return; }
       this.setState({ custEdit: null });
     }
     await this.loadData();
