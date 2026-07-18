@@ -2189,19 +2189,17 @@ class Component extends DCLogic {
     return null;
   }
   invRangeLabel(range) { return { day: 'รายวัน', month: 'รายเดือน', quarter: 'รายไตรมาส', year: 'รายปี', custom: 'กำหนดช่วงเอง' }[range] || ''; }
-  // Billing cycle runs from the 25th of one month to the 24th of the next.
-  // Given any reference date, return the cycle that contains it.
-  billingCycle(refIso) {
-    const d = new Date(refIso + 'T00:00:00');
-    let y = d.getFullYear(), m = d.getMonth();
-    if (d.getDate() < 25) { m -= 1; if (m < 0) { m = 11; y -= 1; } }
-    return { from: this.isoLocal(new Date(y, m, 25)), to: this.isoLocal(new Date(y, m + 1, 24)) };
+  // Default custom range: the 25th of last month through the 24th of this month
+  // (relative to today), matching the monthly billing cycle.
+  defaultBillingRange() {
+    const t = new Date(), y = t.getFullYear(), m = t.getMonth();
+    return { from: this.isoLocal(new Date(y, m - 1, 25)), to: this.isoLocal(new Date(y, m, 24)) };
   }
   setInvoiceRange(range) {
     const o = this.state.invoiceOrder; if (!o) return;
     if (range === 'day') { this.setState({ invoiceOrder: { ...o, range, to: o.from } }); return; }
-    // Custom defaults to the 25th–24th billing cycle around the reference date; still editable.
-    if (range === 'custom') { const b = this.billingCycle(o.from || this.isoLocal(new Date())); this.setState({ invoiceOrder: { ...o, range, from: b.from, to: b.to } }); return; }
+    // Custom defaults to the 25th of last month → 24th of this month; still editable.
+    if (range === 'custom') { const b = this.defaultBillingRange(); this.setState({ invoiceOrder: { ...o, range, from: b.from, to: b.to } }); return; }
     const b = this.invRangeBounds(range);
     this.setState({ invoiceOrder: { ...o, range, from: b.from, to: b.to } });
   }
