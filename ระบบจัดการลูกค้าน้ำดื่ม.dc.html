@@ -76,13 +76,15 @@
     .print-invoice{ position:static !important; inset:auto !important; display:block !important; padding:0 !important; margin:0 !important; background:#fff !important; overflow:visible !important; z-index:auto !important }
     .print-invoice > div{ max-width:none !important; width:auto !important; margin:0 !important }
     .noprint{ display:none !important }
-    #tax-invoice{ width:auto !important; min-height:0 !important; height:auto !important; margin:0 !important; padding:0 !important; box-shadow:none !important; border-radius:0 !important;
+    .tax-invoice{ width:auto !important; min-height:0 !important; height:auto !important; margin:0 !important; padding:0 !important; box-shadow:none !important; border-radius:0 !important;
                   -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important }
-    #tax-invoice *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important }
-    #tax-invoice .no-break{ break-inside:avoid;page-break-inside:avoid }
-    #tax-invoice table{ break-inside:auto }
-    #tax-invoice tr{ break-inside:avoid;page-break-inside:avoid }
-    #tax-invoice thead{ display:table-header-group }
+    /* each additional copy (ต้นฉบับ → สำเนา) starts on its own page */
+    .tax-invoice + .tax-invoice{ break-before:page; page-break-before:always }
+    .tax-invoice *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important }
+    .tax-invoice .no-break{ break-inside:avoid;page-break-inside:avoid }
+    .tax-invoice table{ break-inside:auto }
+    .tax-invoice tr{ break-inside:avoid;page-break-inside:avoid }
+    .tax-invoice thead{ display:table-header-group }
   }
 </style>
 </helmet>
@@ -1159,7 +1161,8 @@
           <button onClick="{{ printInvoice }}" style="padding:9px 18px;background:#123a5e;color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer">🖨 พิมพ์ / บันทึก PDF</button>
         </div>
       </div>
-      <div id="tax-invoice" style="background:#fff;color:#1a1a1a;width:794px;max-width:100%;min-height:1123px;margin:0 auto;box-sizing:border-box;padding:58px 50px 46px;border-radius:6px;font-size:14px;line-height:1.6">
+      <sc-for list="{{ inv.copies }}" as="copy" hint-placeholder-count="1">
+      <div class="tax-invoice" style="background:#fff;color:#1a1a1a;width:794px;max-width:100%;min-height:1123px;margin:0 auto 14px;box-sizing:border-box;padding:58px 50px 46px;border-radius:6px;font-size:14px;line-height:1.6">
         <div class="no-break" style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;border-bottom:2px solid #1a1a1a;padding-bottom:18px">
           <div style="display:flex;gap:14px;align-items:flex-start">
             <img src="assets/logo.png?v=2" style="width:58px;height:58px;object-fit:contain;border-radius:9px;flex-shrink:0" />
@@ -1173,7 +1176,7 @@
           </div>
           <div style="text-align:right;white-space:nowrap">
             <div style="font-size:20px;font-weight:700;color:#1a1a1a">{{ inv.docTitle }}</div>
-            <div style="font-size:12px;color:#777;margin-top:2px">{{ inv.docSub }}</div>
+            <div style="font-size:12px;color:#777;margin-top:2px">{{ inv.docSub }} {{ copy.label }}</div>
             <div style="font-size:12.5px;margin-top:9px">เลขที่ <b class="mono">{{ inv.docNo }}</b></div>
             <div style="font-size:12.5px;margin-top:2px">วันที่ {{ inv.docDateF }}</div>
             <sc-if value="{{ inv.isRange }}" hint-placeholder-val="{{ false }}"><div style="font-size:11.5px;color:#999;margin-top:2px">ช่วงบิล {{ inv.dateF }}</div></sc-if>
@@ -1273,6 +1276,7 @@
         </sc-if>
         </div>
       </div>
+      </sc-for>
     </div>
   </div>
   </sc-if>
@@ -1999,7 +2003,7 @@ class Component extends DCLogic {
       V.onInvFrom = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, from: e.target.value, range: 'custom' } }));
       V.onInvTo = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, to: e.target.value, range: 'custom' } }));
       V.invEmpty = raw.length === 0;
-      const DT = { taxreceipt: { title: 'ใบกำกับภาษี / ใบเสร็จรับเงิน', sub: 'TAX INVOICE / RECEIPT (ต้นฉบับ)' }, delivery: { title: 'ใบส่งสินค้า / ใบกำกับภาษี', sub: 'DELIVERY NOTE / TAX INVOICE' }, cash: { title: 'ใบเสร็จรับเงิน / บิลเงินสด', sub: 'RECEIPT / CASH BILL' }, billing: { title: 'ใบวางบิล / ใบแจ้งหนี้', sub: 'BILLING NOTE / INVOICE' }, invdelivery: { title: 'ใบแจ้งหนี้ / บิลส่งของ', sub: 'INVOICE / DELIVERY NOTE' } };
+      const DT = { taxreceipt: { title: 'ใบกำกับภาษี / ใบเสร็จรับเงิน', sub: 'TAX INVOICE / RECEIPT' }, delivery: { title: 'ใบส่งสินค้า / ใบกำกับภาษี', sub: 'DELIVERY NOTE / TAX INVOICE' }, cash: { title: 'ใบเสร็จรับเงิน / บิลเงินสด', sub: 'RECEIPT / CASH BILL' }, billing: { title: 'ใบวางบิล / ใบแจ้งหนี้', sub: 'BILLING NOTE / INVOICE' }, invdelivery: { title: 'ใบแจ้งหนี้ / บิลส่งของ', sub: 'INVOICE / DELIVERY NOTE' } };
       const docType = o.docType || 'taxreceipt';
       const docDate = o.docDate || to;
       const dt = DT[docType];
@@ -2013,6 +2017,7 @@ class Component extends DCLogic {
         docNo: 'IV' + from.replace(/-/g, '') + '-' + String(o.customerId).replace(/-/g, '').slice(0, 4).padStart(4, '0'),
         dateF: dateLabel, isRange, rangeShort: this.invRangeLabel(o.range),
         docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
+        copies: (docType === 'taxreceipt' || docType === 'delivery') ? [{ label: '(ต้นฉบับ)' }, { label: '(สำเนา)' }] : [{ label: '' }],
         bank: this.SELLER.bank, payNotify: this.SELLER.payNotify,
         custName: cust.invoiceName || cust.name || '-', custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
         items: groups.map((g, i) => ({ no: i + 1, label: this.typeLabel(g.type), qty: g.qty, priceF: this.fmt2(g.price), amountF: this.fmt2(g.total) })),
