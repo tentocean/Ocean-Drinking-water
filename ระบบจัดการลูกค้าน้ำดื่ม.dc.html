@@ -64,10 +64,18 @@
 
   @page{ size:A4; margin:0 }
   @media print{
-    html, body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; background:#fff !important }
-    body *{ visibility:hidden !important }
-    #tax-invoice, #tax-invoice *{ visibility:visible !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important }
-    #tax-invoice{ position:absolute !important;left:0;top:0;width:210mm !important;height:297mm !important;margin:0 !important;padding:0 !important;box-shadow:none;border-radius:0;overflow:hidden }
+    html, body{ -webkit-print-color-adjust:exact; print-color-adjust:exact; color-adjust:exact; background:#fff !important; margin:0 !important; padding:0 !important }
+    /* Hide the whole app EXCEPT the invoice modal — display:none (not visibility) so
+       the dashboard doesn't reserve height and spill onto a blank second page. */
+    .app-root > *:not(.print-invoice){ display:none !important }
+    /* The invoice modal: drop the dark overlay / centering / scroll box and let the
+       paper flow from the top-left of the page. */
+    .print-invoice{ position:static !important; inset:auto !important; display:block !important; padding:0 !important; margin:0 !important; background:#fff !important; overflow:visible !important; z-index:auto !important }
+    .print-invoice > div{ max-width:none !important; width:auto !important; margin:0 !important }
+    .noprint{ display:none !important }
+    #tax-invoice{ width:210mm !important; height:297mm !important; margin:0 !important; box-shadow:none !important; border-radius:0 !important; overflow:hidden;
+                  -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important }
+    #tax-invoice *{ -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important; color-adjust:exact !important }
     #tax-invoice .no-break{ break-inside:avoid;page-break-inside:avoid }
     #tax-invoice table{ break-inside:auto }
     #tax-invoice tr{ break-inside:avoid;page-break-inside:avoid }
@@ -76,7 +84,7 @@
 </style>
 </helmet>
 
-<div style="min-height:100vh;background:#f5f7f9">
+<div class="app-root" style="min-height:100vh;background:#f5f7f9">
 
   <!-- ============ TOP BAR ============ -->
   <header style="position:sticky;top:0;z-index:20;background:#fff;border-bottom:1px solid #e5e9ee;box-shadow:0 1px 2px rgba(16,40,64,.04)">
@@ -1115,9 +1123,9 @@
 
   <!-- ============ TAX INVOICE ============ -->
   <sc-if value="{{ invoiceOpen }}" hint-placeholder-val="{{ false }}">
-  <div onClick="{{ closeInvoice }}" style="position:fixed;inset:0;z-index:70;background:rgba(16,30,45,.5);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto">
+  <div onClick="{{ closeInvoice }}" class="print-invoice" style="position:fixed;inset:0;z-index:70;background:rgba(16,30,45,.5);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto">
     <div onClick="{{ stop }}" style="width:100%;max-width:780px">
-      <div style="background:#fff;border-radius:11px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+      <div class="noprint" style="background:#fff;border-radius:11px;padding:12px 14px;margin-bottom:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
         <span style="font-size:12.5px;color:#6b7787;font-weight:600">ช่วงเวลาใบกำกับภาษี:</span>
         <div style="display:flex;gap:6px;flex-wrap:wrap">
           <sc-for list="{{ invRangeItems }}" as="r" hint-placeholder-count="5"><button onClick="{{ r.onClick }}" style="{{ r.style }}">{{ r.label }}</button></sc-for>
