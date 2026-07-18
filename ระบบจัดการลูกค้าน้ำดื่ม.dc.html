@@ -1094,8 +1094,11 @@
   <div onClick="{{ cancelCustEdit }}" style="position:fixed;inset:0;z-index:65;background:rgba(16,30,45,.45);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto">
     <div onClick="{{ stop }}" style="background:#fff;border-radius:14px;padding:22px 24px;width:100%;max-width:440px;box-shadow:0 24px 64px rgba(0,0,0,.32)">
       <div style="font-size:16px;font-weight:700;color:#123a5e;margin-bottom:16px">{{ ceTitle }}</div>
-      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">ชื่อลูกค้า / ชื่อบริษัท
+      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">ชื่อลูกค้า / ชื่อบริษัท <span style="color:#a6afb8">(ชื่อสั้นสำหรับค้นหา)</span>
         <input value="{{ ce.name }}" onChange="{{ onCeName }}" placeholder="เช่น ร้านอาหารครัวคุณแม่" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px" />
+      </label>
+      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">ชื่อสำหรับออกใบกำกับภาษี <span style="color:#a6afb8">(เว้นว่างถ้าใช้ชื่อเดียวกับด้านบน)</span>
+        <input value="{{ ce.invoiceName }}" onChange="{{ onCeInvoiceName }}" placeholder="เช่น บริษัท ... จำกัด (สำนักงานใหญ่)" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px" />
       </label>
       <div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px">
         <label style="flex:1;min-width:150px;font-size:12px;color:#6b7787">เบอร์โทร
@@ -1958,7 +1961,7 @@ class Component extends DCLogic {
       V.ceEmpOptions = this.EMP.map(e => ({ id: e.id, name: e.name, sel: e.id === ce.employeeId }));
     } else { V.custEditOpen = false; }
     V.onCeField = (f) => (e => this.setState(s => ({ custEdit: { ...s.custEdit, [f]: e.target.value } })));
-    V.onCeName = V.onCeField('name'); V.onCePhone = V.onCeField('phone'); V.onCeAddr = V.onCeField('address');
+    V.onCeName = V.onCeField('name'); V.onCePhone = V.onCeField('phone'); V.onCeAddr = V.onCeField('address'); V.onCeInvoiceName = V.onCeField('invoiceName');
     V.onCeTax = e => this.setState(s => ({ custEdit: { ...s.custEdit, taxId: e.target.value.replace(/[^0-9]/g, '') } }));
     V.onCeContact = V.onCeField('contact'); V.onCeEmp = V.onCeField('employeeId');
     V.saveCustomer = () => this.saveCustomer();
@@ -1967,7 +1970,7 @@ class Component extends DCLogic {
     V.deleteCustomer = () => this.deleteCustomer();
     V.payAllCust = () => { if (st.selectedCustomerId) this.openBulkPay(st.selectedCustomerId); };
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
-    V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id } });
+    V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id } });
 
     // tax invoice
     V.seller = this.SELLER;
@@ -2011,7 +2014,7 @@ class Component extends DCLogic {
         dateF: dateLabel, isRange, rangeShort: this.invRangeLabel(o.range),
         docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
         bank: this.SELLER.bank, payNotify: this.SELLER.payNotify,
-        custName: cust.name || '-', custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
+        custName: cust.invoiceName || cust.name || '-', custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
         items: groups.map((g, i) => ({ no: i + 1, label: this.typeLabel(g.type), qty: g.qty, priceF: this.fmt2(g.price), amountF: this.fmt2(g.total) })),
         baseF: this.fmt2(base), vatF: this.fmt2(vat), grandF: this.fmt2(grand), words: this.bahtText(grand),
       };
@@ -2061,7 +2064,7 @@ class Component extends DCLogic {
       (signed || []).forEach((s, i) => { if (s && s.signedUrl) signedMap[slipPaths[i]] = s.signedUrl; });
     }
     this.setState({
-      customers: (customers || []).map(c => ({ id: c.id, name: c.name, phone: c.phone || '', address: c.address || '', taxId: c.tax_id || '', contact: c.contact || '', employeeId: c.employee_id })),
+      customers: (customers || []).map(c => ({ id: c.id, name: c.name, invoiceName: c.invoice_name || '', phone: c.phone || '', address: c.address || '', taxId: c.tax_id || '', contact: c.contact || '', employeeId: c.employee_id })),
       sales: (sales || []).map(s => ({ id: s.id, groupId: s.group_id, date: s.sale_date, employeeId: s.employee_id, customerId: s.customer_id, type: s.type, qty: +s.qty, price: +s.price, total: +s.total, method: s.method, paid: s.paid, paidDate: s.paid_date, slip: s.slip_url ? (signedMap[s.slip_url] || null) : null })),
       expenses: (expenses || []).map(e => ({ id: e.id, date: e.expense_date, employeeId: e.employee_id, category: e.category, amount: +e.amount, note: e.note || '' })),
       factory: (factory || []).map(f => ({ id: f.id, date: f.entry_date, cat: f.category, variant: f.variant || '', qty: +(f.qty || 0), unitPrice: +(f.unit_price || 0), total: +f.total, note: f.note || '' })),
@@ -2210,12 +2213,12 @@ class Component extends DCLogic {
   async saveCustomer() {
     const ce = this.state.custEdit; if (!ce || !ce.name.trim()) return;
     if (ce.id == null) {
-      const row = { name: ce.name, phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
+      const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
       const { data, error } = await supabase.from('customers').insert(row).select().single();
       if (error) { console.error('saveCustomer (insert) failed', error); return; }
       this.setState({ custEdit: null, selectedCustomerId: data.id });
     } else {
-      const row = { name: ce.name, phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
+      const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
       const { error } = await supabase.from('customers').update(row).eq('id', ce.id);
       if (error) { console.error('saveCustomer (update) failed', error); return; }
       this.setState({ custEdit: null });

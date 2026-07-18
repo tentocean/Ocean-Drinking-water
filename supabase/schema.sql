@@ -28,6 +28,7 @@ create table if not exists profiles (
 create table if not exists customers (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  invoice_name text,           -- full legal/company name used on tax invoices (name stays a short label)
   phone text,
   address text,
   tax_id text,
@@ -35,6 +36,8 @@ create table if not exists customers (
   employee_id text references employees(id),
   created_at timestamptz not null default now()
 );
+-- add invoice_name to databases created before this column existed
+alter table customers add column if not exists invoice_name text;
 
 create table if not exists sales (
   id uuid primary key default gen_random_uuid(),
