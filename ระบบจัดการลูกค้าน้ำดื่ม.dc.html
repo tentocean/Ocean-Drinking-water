@@ -180,6 +180,7 @@
         <button onClick="{{ setViewSummary }}" style="{{ tabSummaryStyle }}">📊&nbsp; สรุปยอด</button>
         <button onClick="{{ setViewSales }}" style="{{ tabSalesStyle }}">🧾&nbsp; บันทึกการขาย</button>
         <button onClick="{{ setViewCustomers }}" style="{{ tabCustomersStyle }}">👥&nbsp; ลูกค้า</button>
+        <button onClick="{{ setViewDocs }}" style="{{ tabDocsStyle }}">📁&nbsp; ทะเบียนเอกสาร</button>
         <sc-if value="{{ isOwner }}" hint-placeholder-val="{{ true }}">
           <button onClick="{{ setViewFactory }}" style="{{ tabFactoryStyle }}">🏭&nbsp; ค่าใช้จ่ายโรงงาน</button>
           <button onClick="{{ setViewProfit }}" style="{{ tabProfitStyle }}">📈&nbsp; งบกำไรขาดทุน</button>
@@ -833,6 +834,93 @@
     </div>
     </sc-if>
 
+    <!-- ========== VIEW: DOCUMENT REGISTER ========== -->
+    <sc-if value="{{ isDocs }}" hint-placeholder-val="{{ false }}">
+    <div data-screen-label="Document Register">
+      <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:14px">
+        <div style="display:flex;background:#fff;border:1px solid #e5e9ee;border-radius:10px;padding:4px;gap:3px">
+          <sc-for list="{{ docPeriodItems }}" as="p" hint-placeholder-count="4"><button onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</button></sc-for>
+        </div>
+        <div style="font-size:13px;color:#6b7787">ช่วง: <b style="color:#123a5e">{{ docRangeLabel }}</b></div>
+        <input value="{{ docSearch }}" onChange="{{ onDocSearch }}" placeholder="ค้นหาเลขที่เอกสาร หรือชื่อลูกค้า…" style="margin-left:auto;min-width:240px;padding:9px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:13px" />
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">
+        <sc-for list="{{ docKpis }}" as="k" hint-placeholder-count="4">
+          <div style="{{ k.cardStyle }}">
+            <div style="font-size:12px;color:#6b7787;margin-bottom:6px">{{ k.label }}</div>
+            <div style="font-size:21px;font-weight:700;letter-spacing:-.01em;{{ k.valColor }}" class="mono">{{ k.valueF }}</div>
+            <div style="font-size:11px;color:#8a94a0;margin-top:3px">{{ k.sub }}</div>
+          </div>
+        </sc-for>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;overflow:hidden;margin-bottom:16px">
+        <div style="padding:13px 18px;border-bottom:1px solid #eef2f5;font-size:14.5px;font-weight:600">เลขรันแยกตามประเภทเอกสาร</div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
+          <sc-for list="{{ docSeries }}" as="d" hint-placeholder-count="5">
+            <div style="padding:13px 18px;border-right:1px solid #f2f5f7;border-bottom:1px solid #f2f5f7">
+              <div style="font-size:12.5px;color:#6b7787">{{ d.short }} <span class="mono" style="color:#a6afb8">({{ d.prefix }})</span></div>
+              <div style="font-size:16px;font-weight:700;color:#123a5e;margin-top:3px">{{ d.count }} · {{ d.amountF }}</div>
+              <div style="font-size:11.5px;color:#8a94a0;margin-top:2px">ล่าสุด <span class="mono">{{ d.lastNo }}</span></div>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <sc-for list="{{ docTypeItems }}" as="t" hint-placeholder-count="6"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+      </div>
+
+      <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;overflow:hidden">
+        <div class="m-scroll" style="overflow-x:auto">
+          <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:900px">
+            <thead>
+              <tr style="background:#f7f9fb;color:#6b7787;text-align:left">
+                <th style="padding:10px 14px;font-weight:600">เลขที่</th>
+                <th style="padding:10px 14px;font-weight:600">วันที่</th>
+                <th style="padding:10px 14px;font-weight:600">ประเภท</th>
+                <th style="padding:10px 14px;font-weight:600">ลูกค้า</th>
+                <th style="padding:10px 14px;font-weight:600;text-align:right">ก่อน VAT</th>
+                <th style="padding:10px 14px;font-weight:600;text-align:right">VAT</th>
+                <th style="padding:10px 14px;font-weight:600;text-align:right">รวม</th>
+                <th style="padding:10px 14px;font-weight:600">สถานะ</th>
+                <th style="padding:10px 14px;font-weight:600"></th>
+              </tr>
+            </thead>
+            <tbody>
+              <sc-for list="{{ docRows }}" as="r" hint-placeholder-count="4">
+                <tr style="{{ r.rowStyle }}">
+                  <td style="padding:11px 14px;font-weight:600;color:#123a5e" class="mono">{{ r.docNo }}</td>
+                  <td style="padding:11px 14px;color:#4a5a6a">{{ r.dateF }}</td>
+                  <td style="padding:11px 14px;color:#4a5a6a">{{ r.typeShort }}</td>
+                  <td style="padding:11px 14px">{{ r.custName }}<div style="font-size:11px;color:#a6afb8">{{ r.periodF }}</div></td>
+                  <td style="padding:11px 14px;text-align:right" class="mono">{{ r.baseF }}</td>
+                  <td style="padding:11px 14px;text-align:right;color:#6b7787" class="mono">{{ r.vatF }}</td>
+                  <td style="padding:11px 14px;text-align:right;font-weight:600" class="mono">{{ r.grandF }}</td>
+                  <td style="padding:11px 14px"><span style="{{ r.statusStyle }}">{{ r.statusLabel }}</span></td>
+                  <td style="padding:11px 14px;white-space:nowrap">
+                    <button onClick="{{ r.onReprint }}" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">🖨 พิมพ์ซ้ำ</button>
+                    <sc-if value="{{ r.canCancel }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ r.onCancel }}" style="margin-left:6px;border:1px solid #f0d2ce;background:#fdf6f5;color:#b4453a;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">ยกเลิก</button>
+                    </sc-if>
+                  </td>
+                </tr>
+              </sc-for>
+            </tbody>
+          </table>
+        </div>
+        <sc-if value="{{ docEmpty }}" hint-placeholder-val="{{ false }}">
+          <div style="padding:44px 20px;text-align:center;color:#a6afb8">
+            <div style="font-size:30px;margin-bottom:8px">📁</div>
+            <div style="font-size:13.5px">ยังไม่มีเอกสารที่ออกเลขในช่วงนี้</div>
+            <div style="font-size:12px;margin-top:4px">ออกเอกสารได้จากแท็บ “ลูกค้า” → เลือกลูกค้า → 🧾 ออกใบกำกับภาษี</div>
+          </div>
+        </sc-if>
+      </div>
+    </div>
+    </sc-if>
+
     <!-- ========== VIEW: FACTORY COSTS ========== -->
     <sc-if value="{{ isFactory }}" hint-placeholder-val="{{ false }}">
     <div data-screen-label="Factory Costs">
@@ -1158,8 +1246,12 @@
         <input type="date" value="{{ invDocDate }}" onChange="{{ onInvDocDate }}" style="padding:6px 9px;border:1px solid #dce2e8;border-radius:8px;font-size:12.5px" />
         <div style="margin-left:auto;display:flex;gap:10px">
           <button onClick="{{ closeInvoice }}" style="padding:9px 16px;background:#fff;color:#4a5a6a;border:1px solid #e0e4e9;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer">ปิด</button>
+          <sc-if value="{{ invNotIssued }}" hint-placeholder-val="{{ true }}">
+            <button onClick="{{ issueDoc }}" disabled="{{ invIssueDisabled }}" style="{{ invIssueStyle }}">{{ invIssueLabel }}</button>
+          </sc-if>
           <button onClick="{{ printInvoice }}" style="padding:9px 18px;background:#123a5e;color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer">🖨 พิมพ์ / บันทึก PDF</button>
         </div>
+        <div style="flex-basis:100%;font-size:12px;{{ invStatusStyle }}">{{ invStatusText }}</div>
       </div>
       <sc-for list="{{ inv.copies }}" as="copy" hint-placeholder-count="1">
       <div class="tax-invoice" style="background:#fff;color:#1a1a1a;width:794px;max-width:100%;min-height:1123px;margin:0 auto 14px;box-sizing:border-box;padding:58px 50px 46px;border-radius:6px;font-size:14px;line-height:1.6">
@@ -1336,15 +1428,29 @@ class Component extends DCLogic {
     bank: { name: 'รุ่งเรืองน้ำดื่ม โดย นายจรูญ อินทรชาติ', acct: '123-8-49555-1', bank: 'ธนาคารกสิกรไทย บัญชีออมทรัพย์', branch: 'เซ็นทรัลพลาซา ระยอง' },
     payNotify: ['1. โทร 081-1611344, 085-8240230', '2. Email : rr.oceandrinkingwater@gmail.com', '3. Official Line : @920dctef', '4. Facebook : Ocean drinking water by RR', '* แนบเอกสารการโอนเงินทุกครั้ง'] };
 
+  // Document types. `prefix` must stay in sync with doc_prefix() in
+  // supabase/migration-invoices.sql — that function, not this table, is what
+  // actually stamps the number. `vat` marks the ones that count as output VAT
+  // in the sales-tax report (a ใบวางบิล isn't a tax invoice).
+  DOCT = [
+    { key: 'taxreceipt',  prefix: 'IV', short: 'ใบกำกับภาษี/ใบเสร็จ',  title: 'ใบกำกับภาษี / ใบเสร็จรับเงิน', sub: 'TAX INVOICE / RECEIPT',        vat: true },
+    { key: 'delivery',    prefix: 'DN', short: 'ใบส่งสินค้า',          title: 'ใบส่งสินค้า / ใบกำกับภาษี',    sub: 'DELIVERY NOTE / TAX INVOICE',  vat: true },
+    { key: 'cash',        prefix: 'RC', short: 'ใบเสร็จ/บิลเงินสด',    title: 'ใบเสร็จรับเงิน / บิลเงินสด',   sub: 'RECEIPT / CASH BILL',          vat: false },
+    { key: 'billing',     prefix: 'BL', short: 'ใบวางบิล',             title: 'ใบวางบิล / ใบแจ้งหนี้',        sub: 'BILLING NOTE / INVOICE',       vat: false },
+    { key: 'invdelivery', prefix: 'IN', short: 'ใบแจ้งหนี้/บิลส่งของ', title: 'ใบแจ้งหนี้ / บิลส่งของ',       sub: 'INVOICE / DELIVERY NOTE',      vat: false },
+  ];
+  docTypeInfo(k) { return this.DOCT.find(d => d.key === k) || { short: k, title: k, sub: '', vat: false }; }
+
   state = {
     view: 'summary', scope: 'all', period: 'day',
     selectedDate: this.isoLocal(new Date()),
-    sales: [], expenses: [], factory: [], customers: [],
+    sales: [], expenses: [], factory: [], customers: [], invoices: [],
     role: 'owner', authed: false, authChecked: false, empChosen: false, currentEmployeeId: 'e1',
     login: { email: '', pass: '', error: '' },
     search: '', selectedCustomerId: null, suggestOpen: false, payModal: null, slipView: null, invoiceOrder: null, custEdit: null,
     typeFilter: 'all', expFilter: 'all', plPeriod: 'month', facPeriod: 'month',
     custRange: 'all', custFrom: '', custTo: '',
+    docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false,
     saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] },
     expForm: { category: 'ค่าน้ำมัน', amount: '', note: '' },
     facForm: { cat: 'cap', variant: '', qty: '', unitPrice: '', total: '', note: '' },
@@ -1551,7 +1657,7 @@ class Component extends DCLogic {
       showLogin: isOwner && !st.authed,
       showEmpPicker: !isOwner && !st.empChosen,
       showApp: (isOwner && st.authed) || (!isOwner && st.empChosen),
-      isSummary: view === 'summary', isSales: view === 'sales', isCustomers: view === 'customers', isFactory: isOwner && view === 'factory', isProfit: isOwner && view === 'profit',
+      isSummary: view === 'summary', isSales: view === 'sales', isCustomers: view === 'customers', isDocs: view === 'docs', isFactory: isOwner && view === 'factory', isProfit: isOwner && view === 'profit',
       selectedDate: st.selectedDate, dateLabel: navLabel, dateSubLabel: navSub,
       period: st.period,
       periodDayStyle: seg(st.period === 'day', '#123a5e'), periodMonthStyle: seg(st.period === 'month', '#123a5e'), periodYearStyle: seg(st.period === 'year', '#123a5e'),
@@ -1567,7 +1673,8 @@ class Component extends DCLogic {
       whoSub: isOwner ? 'เห็นข้อมูลทุกคน' : (st.empChosen ? (this.EMP.find(e => e.id === st.currentEmployeeId) || {}).route : 'ยังไม่เลือกชื่อ'),
       showLogoutOwner: isOwner && st.authed,
       showChangeEmp: !isOwner && st.empChosen,
-      tabSummaryStyle: tab(view === 'summary'), tabSalesStyle: tab(view === 'sales'), tabCustomersStyle: tab(view === 'customers'), tabFactoryStyle: tab(view === 'factory'), tabProfitStyle: tab(view === 'profit'),
+      tabSummaryStyle: tab(view === 'summary'), tabSalesStyle: tab(view === 'sales'), tabCustomersStyle: tab(view === 'customers'), tabDocsStyle: tab(view === 'docs'), tabFactoryStyle: tab(view === 'factory'), tabProfitStyle: tab(view === 'profit'),
+      setViewDocs: () => this.setState({ view: 'docs' }),
       setViewSummary: () => this.setState({ view: 'summary' }),
       setViewSales: () => this.setState({ view: 'sales' }),
       setViewCustomers: () => this.setState({ view: 'customers' }),
@@ -1975,6 +2082,70 @@ class Component extends DCLogic {
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
     V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id } });
 
+    // ---------- ทะเบียนเอกสาร (issued-document dashboard) ----------
+    {
+      const dr = this.computeRange(st.docPeriod);
+      // Employees only see documents for their own customers, matching the
+      // scoping used by the sales/customers views.
+      const custEmp = {}; st.customers.forEach(c => { custEmp[c.id] = c.employeeId; });
+      const mine = effEmp === null ? st.invoices : st.invoices.filter(v => custEmp[v.customerId] === effEmp);
+      const inRange = mine.filter(v => v.docDate >= dr.a && v.docDate <= dr.b);
+      const q = st.docSearch.trim().toLowerCase();
+      const shown = inRange
+        .filter(v => st.docTypeFilter === 'all' || v.docType === st.docTypeFilter)
+        .filter(v => !q || v.docNo.toLowerCase().includes(q) || (v.custName || '').toLowerCase().includes(q))
+        .sort((a, b) => a.docNo < b.docNo ? 1 : (a.docNo > b.docNo ? -1 : 0));
+
+      const live = inRange.filter(v => v.status === 'issued');
+      const vatDocs = live.filter(v => this.docTypeInfo(v.docType).vat);
+      const cancelled = inRange.filter(v => v.status === 'cancelled');
+
+      V.docPeriodItems = [['month', 'เดือนนี้'], ['quarter', 'ไตรมาสนี้'], ['half', 'ครึ่งปี'], ['year', 'ปีนี้']]
+        .map(([k, l]) => ({ label: l, style: seg(st.docPeriod === k, '#123a5e'), onClick: () => this.setState({ docPeriod: k }) }));
+      V.docRangeLabel = dr.label;
+      V.docKpis = [
+        { label: 'เอกสารที่ออก', valueF: live.length.toLocaleString('en-US') + ' ใบ', sub: 'ยกเลิก ' + cancelled.length + ' ใบ' },
+        { label: 'มูลค่าก่อน VAT', valueF: this.fmt(live.reduce((a, v) => a + v.base, 0)), sub: 'ทุกประเภทเอกสาร' },
+        { label: 'ภาษีขาย (VAT)', valueF: this.fmt(vatDocs.reduce((a, v) => a + v.vat, 0)), sub: 'เฉพาะใบกำกับภาษี ' + vatDocs.length + ' ใบ' },
+        { label: 'ยอดรวมทั้งสิ้น', valueF: this.fmt(live.reduce((a, v) => a + v.grand, 0)), sub: 'รวม VAT แล้ว' },
+      ].map(k => ({ ...k, cardStyle: 'background:#fff;border:1px solid #e5e9ee;border-radius:12px;padding:14px 16px', valColor: 'color:#123a5e' }));
+
+      V.docTypeItems = [{ label: 'ทุกประเภท', style: chip(st.docTypeFilter === 'all'), onClick: () => this.setState({ docTypeFilter: 'all' }) }]
+        .concat(this.DOCT.map(d => ({
+          label: d.short + ' (' + live.filter(v => v.docType === d.key).length + ')',
+          style: chip(st.docTypeFilter === d.key), onClick: () => this.setState({ docTypeFilter: d.key }),
+        })));
+      V.docSearch = st.docSearch;
+      V.onDocSearch = e => this.setState({ docSearch: e.target.value });
+
+      // Per-type breakdown, including the last number handed out — that's the
+      // number the next document of that type will follow.
+      V.docSeries = this.DOCT.map(d => {
+        const rows = inRange.filter(v => v.docType === d.key);
+        const ok = rows.filter(v => v.status === 'issued');
+        const last = mine.filter(v => v.docType === d.key).map(v => v.docNo).sort().pop();
+        return { short: d.short, prefix: d.prefix, count: ok.length + ' ใบ',
+          amountF: this.fmt(ok.reduce((a, v) => a + v.grand, 0)), lastNo: last || '— ยังไม่เคยออก' };
+      });
+
+      V.docRows = shown.map(v => {
+        const cancelledRow = v.status === 'cancelled';
+        return {
+          docNo: v.docNo, dateF: this.fmtDate(v.docDate), typeShort: this.docTypeInfo(v.docType).short,
+          custName: v.custName, periodF: v.from === v.to ? this.fmtDate(v.from) : (this.fmtDate(v.from) + ' – ' + this.fmtDate(v.to)),
+          baseF: this.fmt2(v.base), vatF: this.fmt2(v.vat), grandF: this.fmt2(v.grand),
+          statusLabel: cancelledRow ? 'ยกเลิก' : 'ใช้งาน',
+          statusStyle: 'font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:20px;'
+            + (cancelledRow ? 'background:#fdecea;color:#b4453a' : 'background:#e7f4ee;color:#157a52'),
+          rowStyle: 'border-top:1px solid #eef2f5;' + (cancelledRow ? 'opacity:.55;text-decoration:line-through' : ''),
+          canCancel: !cancelledRow,
+          onReprint: () => this.reprintInvoice(v),
+          onCancel: () => this.cancelInvoice(v.id, v.docNo),
+        };
+      });
+      V.docEmpty = shown.length === 0;
+    }
+
     // tax invoice
     V.seller = this.SELLER;
     if (st.invoiceOrder) {
@@ -2002,24 +2173,46 @@ class Component extends DCLogic {
       V.onInvFrom = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, from: e.target.value, range: 'custom' } }));
       V.onInvTo = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, to: e.target.value, range: 'custom' } }));
       V.invEmpty = raw.length === 0;
-      const DT = { taxreceipt: { title: 'ใบกำกับภาษี / ใบเสร็จรับเงิน', sub: 'TAX INVOICE / RECEIPT' }, delivery: { title: 'ใบส่งสินค้า / ใบกำกับภาษี', sub: 'DELIVERY NOTE / TAX INVOICE' }, cash: { title: 'ใบเสร็จรับเงิน / บิลเงินสด', sub: 'RECEIPT / CASH BILL' }, billing: { title: 'ใบวางบิล / ใบแจ้งหนี้', sub: 'BILLING NOTE / INVOICE' }, invdelivery: { title: 'ใบแจ้งหนี้ / บิลส่งของ', sub: 'INVOICE / DELIVERY NOTE' } };
       const docType = o.docType || 'taxreceipt';
       const docDate = o.docDate || to;
-      const dt = DT[docType];
+      const dt = this.docTypeInfo(docType);
       V.invDocType = docType;
       V.invDocDate = docDate;
       V.onInvDocType = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, docType: e.target.value } }));
       V.onInvDocDate = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, docDate: e.target.value } }));
       const custPhoneRaw = (cust.phone || '').trim();
       const custTaxRaw = (cust.taxId || '').trim();
+      const custNameF = cust.invoiceName || cust.name || '-';
+      const items = groups.map((g, i) => ({ no: i + 1, label: this.typeLabel(g.type), qty: g.qty, priceF: this.fmt2(g.price), amountF: this.fmt2(g.total) }));
+
+      // The number is only allocated when the user explicitly issues the
+      // document — merely previewing must never consume one.
+      const issued = this.findIssued(o.customerId, docType, from, to);
+      V.invIssued = !!issued;
+      V.invNotIssued = !issued;
+      const canIssue = !issued && raw.length > 0 && !st.docIssuing;
+      V.invIssueDisabled = !canIssue;
+      V.invIssueStyle = 'padding:9px 18px;border:none;border-radius:9px;font-size:13.5px;font-weight:600;'
+        + (canIssue ? 'background:#157a52;color:#fff;cursor:pointer' : 'background:#e8ecf0;color:#9aa5b1;cursor:not-allowed');
+      V.invIssueLabel = st.docIssuing ? 'กำลังออกเลข…' : '🔒 ออกเลขเอกสาร';
+      V.invStatusText = issued
+        ? '✓ ออกเลขแล้ว: ' + issued.docNo + ' — เอกสารนี้ถูกบันทึกในทะเบียนแล้ว พิมพ์ซ้ำได้ไม่จำกัด'
+        : (raw.length === 0 ? 'ไม่มีรายการขายในช่วงนี้ — ออกเลขไม่ได้'
+          : 'ยังไม่ได้ออกเลข — ตรวจข้อมูลให้ถูกต้องก่อนกด "ออกเลขเอกสาร" เพราะเลขที่ออกแล้วจะยกเลิกได้อย่างเดียว แก้ไม่ได้');
+      V.invStatusStyle = issued ? 'color:#157a52;font-weight:600' : (raw.length === 0 ? 'color:#b4453a' : 'color:#8a94a0');
+      V.issueDoc = () => this.issueInvoice({
+        docType, docDate, from, to, customerId: o.customerId,
+        custName: custNameF, custAddr: cust.address || '', custTaxId: custTaxRaw,
+        base, vat, grand, items, employeeId: cust.employeeId,
+      });
       V.inv = {
-        docNo: 'IV' + from.replace(/-/g, '') + '-' + String(o.customerId).replace(/-/g, '').slice(0, 4).padStart(4, '0'),
+        docNo: issued ? issued.docNo : 'ร่าง — ยังไม่ออกเลข',
         dateF: dateLabel, isRange, rangeShort: this.invRangeLabel(o.range),
         docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
         copies: (docType === 'taxreceipt' || docType === 'delivery') ? [{ label: '(ต้นฉบับ)' }, { label: '(สำเนา)' }] : [{ label: '' }],
         bank: this.SELLER.bank, payNotify: this.SELLER.payNotify,
-        custName: cust.invoiceName || cust.name || '-', custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
-        items: groups.map((g, i) => ({ no: i + 1, label: this.typeLabel(g.type), qty: g.qty, priceF: this.fmt2(g.price), amountF: this.fmt2(g.total) })),
+        custName: custNameF, custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
+        items,
         baseF: this.fmt2(base), vatF: this.fmt2(vat), grandF: this.fmt2(grand), words: this.bahtText(grand),
       };
     } else { V.invoiceOpen = false; }
@@ -2055,11 +2248,12 @@ class Component extends DCLogic {
     this.setState({ authed: true, role: 'owner' });
   }
   async loadData() {
-    const [{ data: customers }, { data: sales }, { data: expenses }, { data: factory }] = await Promise.all([
+    const [{ data: customers }, { data: sales }, { data: expenses }, { data: factory }, { data: invoices }] = await Promise.all([
       supabase.from('customers').select('*'),
       supabase.from('sales').select('*'),
       supabase.from('expenses').select('*'),
       supabase.from('factory_expenses').select('*'),
+      supabase.from('invoices').select('*').order('doc_no', { ascending: false }),
     ]);
     const slipPaths = (sales || []).filter(s => s.slip_url).map(s => s.slip_url);
     let signedMap = {};
@@ -2072,7 +2266,14 @@ class Component extends DCLogic {
       sales: (sales || []).map(s => ({ id: s.id, groupId: s.group_id, date: s.sale_date, employeeId: s.employee_id, customerId: s.customer_id, type: s.type, qty: +s.qty, price: +s.price, total: +s.total, method: s.method, paid: s.paid, paidDate: s.paid_date, slip: s.slip_url ? (signedMap[s.slip_url] || null) : null })),
       expenses: (expenses || []).map(e => ({ id: e.id, date: e.expense_date, employeeId: e.employee_id, category: e.category, amount: +e.amount, note: e.note || '' })),
       factory: (factory || []).map(f => ({ id: f.id, date: f.entry_date, cat: f.category, variant: f.variant || '', qty: +(f.qty || 0), unitPrice: +(f.unit_price || 0), total: +f.total, note: f.note || '' })),
+      invoices: (invoices || []).map(this.mapInvoice),
     });
+  }
+  mapInvoice(r) {
+    return { id: r.id, docNo: r.doc_no, docType: r.doc_type, docDate: r.doc_date, from: r.period_from, to: r.period_to,
+      customerId: r.customer_id, custName: r.cust_name, custAddr: r.cust_addr || '', custTaxId: r.cust_tax_id || '',
+      base: +r.base, vat: +r.vat, grand: +r.grand, items: r.items || [], status: r.status,
+      cancelReason: r.cancel_reason || '', employeeId: r.employee_id, createdAt: r.created_at };
   }
   async uploadSlip(base64DataUrl, employeeId, hint) {
     if (!base64DataUrl) return null;
@@ -2192,6 +2393,39 @@ class Component extends DCLogic {
   }
   openInvoice(id) { const s = this.state.sales.find(x => x.id === id); if (!s) return; this.setState({ invoiceOrder: { customerId: s.customerId, range: 'day', from: s.date, to: s.date } }); }
   openInvoiceRange(customerId, from, to, range) { this.setState({ invoiceOrder: { customerId, range: range || 'custom', from, to } }); }
+
+  // An already-issued document for the exact same customer + type + period is
+  // reused rather than re-numbered, so reprinting never burns a second number.
+  findIssued(customerId, docType, from, to) {
+    return this.state.invoices.find(v => v.status === 'issued' && v.customerId === customerId
+      && v.docType === docType && v.from === from && v.to === to) || null;
+  }
+  async issueInvoice(payload) {
+    if (this.state.docIssuing) return;
+    this.setState({ docIssuing: true });
+    const { data, error } = await supabase.rpc('issue_invoice', {
+      p_doc_type: payload.docType, p_doc_date: payload.docDate, p_from: payload.from, p_to: payload.to,
+      p_customer_id: payload.customerId, p_cust_name: payload.custName, p_cust_addr: payload.custAddr,
+      p_cust_tax_id: payload.custTaxId, p_base: payload.base, p_vat: payload.vat, p_grand: payload.grand,
+      p_items: payload.items, p_employee_id: payload.employeeId || null,
+    });
+    this.setState({ docIssuing: false });
+    if (error) { console.error('issue_invoice failed', error); window.alert('ออกเลขเอกสารไม่สำเร็จ: ' + error.message); return; }
+    const row = this.mapInvoice(data);
+    this.setState(s => ({ invoices: [row, ...s.invoices] }));
+  }
+  async cancelInvoice(id, docNo) {
+    const reason = window.prompt('ยกเลิกเอกสาร ' + docNo + '\nเลขที่นี้จะถูกเก็บไว้ในทะเบียนและใช้ซ้ำไม่ได้\n\nเหตุผลในการยกเลิก:');
+    if (reason === null) return;
+    const { data, error } = await supabase.rpc('cancel_invoice', { p_id: id, p_reason: reason });
+    if (error) { console.error('cancel_invoice failed', error); window.alert('ยกเลิกไม่สำเร็จ: ' + error.message); return; }
+    const row = this.mapInvoice(data);
+    this.setState(s => ({ invoices: s.invoices.map(v => v.id === row.id ? row : v) }));
+  }
+  // Reopen an issued document exactly as it was filed.
+  reprintInvoice(v) {
+    this.setState({ invoiceOrder: { customerId: v.customerId, range: 'custom', from: v.from, to: v.to, docType: v.docType, docDate: v.docDate } });
+  }
   invRangeBounds(range) {
     const today = this.isoLocal(new Date());
     if (range === 'month') return { from: today.slice(0, 7) + '-01', to: today };

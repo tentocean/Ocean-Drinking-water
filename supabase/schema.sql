@@ -221,6 +221,9 @@ where not exists (select 1 from customers);
 
 -- ============================================================
 -- NEXT STEP (do this after running the above):
--- Create ONE auth user in Dashboard -> Authentication -> Users (the owner),
--- then run the profile-linking snippet from DEPLOY.md.
+-- 1. Run supabase/migration-invoices.sql — the running document-number
+--    system (invoices ledger + counters). Kept in its own file because it
+--    has its own, tighter RLS rules than everything above.
+-- 2. Create ONE auth user in Dashboard -> Authentication -> Users (the owner),
+--    then run the profile-linking snippet from DEPLOY.md.
 -- ============================================================
