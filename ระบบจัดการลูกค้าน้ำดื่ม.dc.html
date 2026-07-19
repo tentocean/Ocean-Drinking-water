@@ -846,7 +846,7 @@
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">
-        <sc-for list="{{ docKpis }}" as="k" hint-placeholder-count="4">
+        <sc-for list="{{ docKpis }}" as="k" hint-placeholder-count="5">
           <div style="{{ k.cardStyle }}">
             <div style="font-size:12px;color:#6b7787;margin-bottom:6px">{{ k.label }}</div>
             <div style="font-size:21px;font-weight:700;letter-spacing:-.01em;{{ k.valColor }}" class="mono">{{ k.valueF }}</div>
@@ -868,8 +868,10 @@
         </div>
       </div>
 
-      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;align-items:center">
         <sc-for list="{{ docTypeItems }}" as="t" hint-placeholder-count="6"><button onClick="{{ t.onClick }}" style="{{ t.style }}">{{ t.label }}</button></sc-for>
+        <span style="width:1px;height:20px;background:#e5e9ee;margin:0 4px"></span>
+        <button onClick="{{ toggleDocOwing }}" style="{{ docOwingToggleStyle }}">{{ docOwingToggleLabel }}</button>
       </div>
 
       <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;overflow:hidden">
@@ -881,9 +883,9 @@
                 <th style="padding:10px 14px;font-weight:600">วันที่</th>
                 <th style="padding:10px 14px;font-weight:600">ประเภท</th>
                 <th style="padding:10px 14px;font-weight:600">ลูกค้า</th>
-                <th style="padding:10px 14px;font-weight:600;text-align:right">ก่อน VAT</th>
-                <th style="padding:10px 14px;font-weight:600;text-align:right">VAT</th>
-                <th style="padding:10px 14px;font-weight:600;text-align:right">รวม</th>
+                <th style="padding:10px 14px;font-weight:600;text-align:right">ยอดรวม</th>
+                <th style="padding:10px 14px;font-weight:600;text-align:right">ชำระแล้ว</th>
+                <th style="padding:10px 14px;font-weight:600;text-align:right">คงค้าง</th>
                 <th style="padding:10px 14px;font-weight:600">สถานะ</th>
                 <th style="padding:10px 14px;font-weight:600"></th>
               </tr>
@@ -895,11 +897,18 @@
                   <td style="padding:11px 14px;color:#4a5a6a">{{ r.dateF }}</td>
                   <td style="padding:11px 14px;color:#4a5a6a">{{ r.typeShort }}</td>
                   <td style="padding:11px 14px">{{ r.custName }}<div style="font-size:11px;color:#a6afb8">{{ r.periodF }}</div></td>
-                  <td style="padding:11px 14px;text-align:right" class="mono">{{ r.baseF }}</td>
-                  <td style="padding:11px 14px;text-align:right;color:#6b7787" class="mono">{{ r.vatF }}</td>
                   <td style="padding:11px 14px;text-align:right;font-weight:600" class="mono">{{ r.grandF }}</td>
-                  <td style="padding:11px 14px"><span style="{{ r.statusStyle }}">{{ r.statusLabel }}</span></td>
+                  <td style="padding:11px 14px;text-align:right;{{ r.paidStyle }}" class="mono">{{ r.paidF }}</td>
+                  <td style="padding:11px 14px;text-align:right;{{ r.owedStyle }}" class="mono">{{ r.owedF }}</td>
+                  <td style="padding:11px 14px">
+                    <span style="{{ r.statusStyle }}">{{ r.statusLabel }}</span>
+                    <div style="font-size:10.5px;color:#b4453a;margin-top:3px">{{ r.ageLabel }}</div>
+                    <div style="font-size:10.5px;color:#a6afb8;margin-top:3px">{{ r.paidOnLabel }}</div>
+                  </td>
                   <td style="padding:11px 14px;white-space:nowrap">
+                    <sc-if value="{{ r.canPay }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ r.onPay }}" style="margin-right:6px;border:1px solid #cfe6d9;background:#f2faf6;color:#157a52;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">💵 รับชำระ</button>
+                    </sc-if>
                     <button onClick="{{ r.onReprint }}" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">🖨 พิมพ์ซ้ำ</button>
                     <sc-if value="{{ r.canCancel }}" hint-placeholder-val="{{ true }}">
                       <button onClick="{{ r.onCancel }}" style="margin-left:6px;border:1px solid #f0d2ce;background:#fdf6f5;color:#b4453a;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">ยกเลิก</button>
@@ -1450,7 +1459,7 @@ class Component extends DCLogic {
     search: '', selectedCustomerId: null, suggestOpen: false, payModal: null, slipView: null, invoiceOrder: null, custEdit: null,
     typeFilter: 'all', expFilter: 'all', plPeriod: 'month', facPeriod: 'month',
     custRange: 'all', custFrom: '', custTo: '',
-    docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false,
+    docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false, docOnlyOwing: false,
     saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] },
     expForm: { category: 'ค่าน้ำมัน', amount: '', note: '' },
     facForm: { cat: 'cap', variant: '', qty: '', unitPrice: '', total: '', note: '' },
@@ -2041,10 +2050,12 @@ class Component extends DCLogic {
         slipImg: pm.slip ? React.createElement('img', { src: pm.slip, style: { width: 44, height: 44, objectFit: 'cover', borderRadius: 8, border: '1px solid #dce2e8' } }) : null,
       };
       if (pm.bulk) {
-        const unpaid = st.sales.filter(x => x.customerId === pm.customerId && !x.paid && x.date >= pm.from && x.date <= pm.to);
+        const unpaid = pm.saleIds
+          ? st.sales.filter(x => pm.saleIds.includes(x.id) && !x.paid)
+          : st.sales.filter(x => x.customerId === pm.customerId && !x.paid && x.date >= pm.from && x.date <= pm.to);
         const total = unpaid.reduce((a, x) => a + x.total, 0);
         V.pay = { ...common, bulk: true, customerName: this.custName(pm.customerId),
-          typeLabel: 'ค้างชำระ ' + unpaid.length + ' รายการ', amountF: this.fmt(total),
+          typeLabel: (pm.docNo ? 'ตามใบ ' + pm.docNo + ' · ' : '') + 'ค้างชำระ ' + unpaid.length + ' รายการ', amountF: this.fmt(total),
           bulkCount: unpaid.length, from: pm.from, to: pm.to };
       } else {
         const s = st.sales.find(x => x.id === pm.saleId) || {};
@@ -2090,15 +2101,24 @@ class Component extends DCLogic {
       const custEmp = {}; st.customers.forEach(c => { custEmp[c.id] = c.employeeId; });
       const mine = effEmp === null ? st.invoices : st.invoices.filter(v => custEmp[v.customerId] === effEmp);
       const inRange = mine.filter(v => v.docDate >= dr.a && v.docDate <= dr.b);
+      const payOf = {}; inRange.forEach(v => { payOf[v.id] = this.invoicePayment(v); });
       const q = st.docSearch.trim().toLowerCase();
       const shown = inRange
         .filter(v => st.docTypeFilter === 'all' || v.docType === st.docTypeFilter)
+        .filter(v => !st.docOnlyOwing || (v.status === 'issued' && payOf[v.id].state !== 'paid'))
         .filter(v => !q || v.docNo.toLowerCase().includes(q) || (v.custName || '').toLowerCase().includes(q))
-        .sort((a, b) => a.docNo < b.docNo ? 1 : (a.docNo > b.docNo ? -1 : 0));
+        // Unpaid first, then newest — the register is mostly used to chase money.
+        .sort((a, b) => {
+          const ao = a.status === 'issued' && payOf[a.id].state !== 'paid';
+          const bo = b.status === 'issued' && payOf[b.id].state !== 'paid';
+          if (ao !== bo) return ao ? -1 : 1;
+          return a.docNo < b.docNo ? 1 : (a.docNo > b.docNo ? -1 : 0);
+        });
 
       const live = inRange.filter(v => v.status === 'issued');
       const vatDocs = live.filter(v => this.docTypeInfo(v.docType).vat);
       const cancelled = inRange.filter(v => v.status === 'cancelled');
+      const owing = live.filter(v => payOf[v.id].state !== 'paid');
 
       V.docPeriodItems = [['month', 'เดือนนี้'], ['quarter', 'ไตรมาสนี้'], ['half', 'ครึ่งปี'], ['year', 'ปีนี้']]
         .map(([k, l]) => ({ label: l, style: seg(st.docPeriod === k, '#123a5e'), onClick: () => this.setState({ docPeriod: k }) }));
@@ -2108,7 +2128,18 @@ class Component extends DCLogic {
         { label: 'มูลค่าก่อน VAT', valueF: this.fmt(live.reduce((a, v) => a + v.base, 0)), sub: 'ทุกประเภทเอกสาร' },
         { label: 'ภาษีขาย (VAT)', valueF: this.fmt(vatDocs.reduce((a, v) => a + v.vat, 0)), sub: 'เฉพาะใบกำกับภาษี ' + vatDocs.length + ' ใบ' },
         { label: 'ยอดรวมทั้งสิ้น', valueF: this.fmt(live.reduce((a, v) => a + v.grand, 0)), sub: 'รวม VAT แล้ว' },
-      ].map(k => ({ ...k, cardStyle: 'background:#fff;border:1px solid #e5e9ee;border-radius:12px;padding:14px 16px', valColor: 'color:#123a5e' }));
+      ].map(k => ({ ...k, cardStyle: 'background:#fff;border:1px solid #e5e9ee;border-radius:12px;padding:14px 16px', valColor: 'color:#123a5e' }))
+        .concat([{
+          label: 'ยอดค้างชำระ', valueF: this.fmt(owing.reduce((a, v) => a + payOf[v.id].outstanding, 0)),
+          sub: owing.length ? ('ค้างอยู่ ' + owing.length + ' ใบ') : 'เก็บครบทุกใบ',
+          cardStyle: 'background:#fff;border:1px solid ' + (owing.length ? '#f0d2ce' : '#e5e9ee') + ';border-radius:12px;padding:14px 16px',
+          valColor: 'color:' + (owing.length ? '#b4453a' : '#157a52'),
+        }]);
+
+      V.docOnlyOwing = st.docOnlyOwing;
+      V.docOwingToggleLabel = st.docOnlyOwing ? '● เฉพาะที่ยังค้าง' : '○ เฉพาะที่ยังค้าง';
+      V.docOwingToggleStyle = chip(st.docOnlyOwing);
+      V.toggleDocOwing = () => this.setState({ docOnlyOwing: !st.docOnlyOwing });
 
       V.docTypeItems = [{ label: 'ทุกประเภท', style: chip(st.docTypeFilter === 'all'), onClick: () => this.setState({ docTypeFilter: 'all' }) }]
         .concat(this.DOCT.map(d => ({
@@ -2128,17 +2159,35 @@ class Component extends DCLogic {
           amountF: this.fmt(ok.reduce((a, v) => a + v.grand, 0)), lastNo: last || '— ยังไม่เคยออก' };
       });
 
+      const PAY_BADGE = {
+        paid:    { label: '🟢 จ่ายครบ',    style: 'background:#e7f4ee;color:#157a52' },
+        partial: { label: '🟡 จ่ายบางส่วน', style: 'background:#fdf3e3;color:#b45309' },
+        unpaid:  { label: '🔴 ค้างชำระ',    style: 'background:#fdecea;color:#b4453a' },
+      };
       V.docRows = shown.map(v => {
         const cancelledRow = v.status === 'cancelled';
+        const p = payOf[v.id];
+        const badge = cancelledRow
+          ? { label: 'ยกเลิก', style: 'background:#eef1f4;color:#8a94a0' }
+          : PAY_BADGE[p.state];
+        const days = this.daysOverdue(v);
         return {
           docNo: v.docNo, dateF: this.fmtDate(v.docDate), typeShort: this.docTypeInfo(v.docType).short,
           custName: v.custName, periodF: v.from === v.to ? this.fmtDate(v.from) : (this.fmtDate(v.from) + ' – ' + this.fmtDate(v.to)),
-          baseF: this.fmt2(v.base), vatF: this.fmt2(v.vat), grandF: this.fmt2(v.grand),
-          statusLabel: cancelledRow ? 'ยกเลิก' : 'ใช้งาน',
-          statusStyle: 'font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:20px;'
-            + (cancelledRow ? 'background:#fdecea;color:#b4453a' : 'background:#e7f4ee;color:#157a52'),
-          rowStyle: 'border-top:1px solid #eef2f5;' + (cancelledRow ? 'opacity:.55;text-decoration:line-through' : ''),
+          grandF: this.fmt2(v.grand),
+          paidF: (!cancelledRow && p.paid > 0.01) ? this.fmt2(p.paid) : '–',
+          paidStyle: (!cancelledRow && p.paid > 0.01) ? 'color:#157a52' : 'color:#d3dae0',
+          owedF: (!cancelledRow && p.outstanding > 0.01) ? this.fmt2(p.outstanding) : '–',
+          owedStyle: (!cancelledRow && p.outstanding > 0.01) ? 'color:#b4453a;font-weight:600' : 'color:#d3dae0',
+          statusLabel: badge.label,
+          statusStyle: 'font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:20px;white-space:nowrap;' + badge.style,
+          // Age is only worth showing while money is actually outstanding.
+          ageLabel: (!cancelledRow && p.state !== 'paid' && days > 0) ? ('ค้าง ' + days + ' วัน') : '',
+          paidOnLabel: (!cancelledRow && p.state === 'paid' && p.lastPaidDate) ? ('รับเมื่อ ' + this.fmtDate(p.lastPaidDate)) : '',
+          rowStyle: 'border-top:1px solid #eef2f5;' + (cancelledRow ? 'opacity:.55' : ''),
           canCancel: !cancelledRow,
+          canPay: !cancelledRow && p.state !== 'paid' && p.unpaidIds.length > 0,
+          onPay: () => this.openInvoicePay(v, p),
           onReprint: () => this.reprintInvoice(v),
           onCancel: () => this.cancelInvoice(v.id, v.docNo),
         };
@@ -2204,6 +2253,9 @@ class Component extends DCLogic {
         docType, docDate, from, to, customerId: o.customerId,
         custName: custNameF, custAddr: cust.address || '', custTaxId: custTaxRaw,
         base, vat, grand, items, employeeId: cust.employeeId,
+        // Freeze exactly which sales this document covers — a sale entered
+        // later inside the same range must not join an already-printed invoice.
+        saleIds: raw.map(s => s.id),
       });
       V.inv = {
         docNo: issued ? issued.docNo : 'ร่าง — ยังไม่ออกเลข',
@@ -2273,7 +2325,36 @@ class Component extends DCLogic {
     return { id: r.id, docNo: r.doc_no, docType: r.doc_type, docDate: r.doc_date, from: r.period_from, to: r.period_to,
       customerId: r.customer_id, custName: r.cust_name, custAddr: r.cust_addr || '', custTaxId: r.cust_tax_id || '',
       base: +r.base, vat: +r.vat, grand: +r.grand, items: r.items || [], status: r.status,
-      cancelReason: r.cancel_reason || '', employeeId: r.employee_id, createdAt: r.created_at };
+      cancelReason: r.cancel_reason || '', employeeId: r.employee_id, createdAt: r.created_at,
+      saleIds: r.sale_ids || [] };
+  }
+  // Payment status is DERIVED from the sales rows the invoice covers — never
+  // stored on the invoice — so "รับชำระ" in the customers tab and the status
+  // shown in the document register can't drift apart. See migration-invoice-payments.sql.
+  invoicePayment(v) {
+    // Documents issued before sale_ids existed fall back to matching by
+    // customer + period, which is the key the invoice was built from.
+    const rows = v.saleIds && v.saleIds.length
+      ? this.state.sales.filter(s => v.saleIds.includes(s.id))
+      : this.state.sales.filter(s => s.customerId === v.customerId && s.date >= v.from && s.date <= v.to);
+    const total = rows.reduce((a, s) => a + s.total, 0);
+    const paid = rows.filter(s => s.paid).reduce((a, s) => a + s.total, 0);
+    const outstanding = total - paid;
+    const unpaidIds = rows.filter(s => !s.paid).map(s => s.id);
+    // Baht amounts can carry rounding dust, so settle on a 1-satang tolerance.
+    const state = outstanding <= 0.01 ? 'paid' : (paid > 0.01 ? 'partial' : 'unpaid');
+    const lastPaidDate = rows.filter(s => s.paid && s.paidDate).map(s => s.paidDate).sort().pop() || null;
+    return { total, paid, outstanding, unpaidIds, state, lastPaidDate };
+  }
+  // Days since the document date — only meaningful while money is still owed.
+  daysOverdue(v) {
+    const ms = new Date(this.isoLocal(new Date()) + 'T00:00:00') - new Date(v.docDate + 'T00:00:00');
+    return Math.max(0, Math.round(ms / 86400000));
+  }
+  openInvoicePay(v, pay) {
+    if (!pay.unpaidIds.length) return;
+    this.setState({ payModal: { bulk: true, saleIds: pay.unpaidIds, customerId: v.customerId,
+      from: v.from, to: v.to, docNo: v.docNo, date: this.isoLocal(new Date()), method: 'cash', slip: null } });
   }
   async uploadSlip(base64DataUrl, employeeId, hint) {
     if (!base64DataUrl) return null;
@@ -2408,6 +2489,7 @@ class Component extends DCLogic {
       p_customer_id: payload.customerId, p_cust_name: payload.custName, p_cust_addr: payload.custAddr,
       p_cust_tax_id: payload.custTaxId, p_base: payload.base, p_vat: payload.vat, p_grand: payload.grand,
       p_items: payload.items, p_employee_id: payload.employeeId || null,
+      p_sale_ids: payload.saleIds || [],
     });
     this.setState({ docIssuing: false });
     if (error) { console.error('issue_invoice failed', error); window.alert('ออกเลขเอกสารไม่สำเร็จ: ' + error.message); return; }
@@ -2492,7 +2574,10 @@ class Component extends DCLogic {
     const update = { paid: true, paid_date: pm.date, method: pm.method };
     if (pm.method === 'transfer' && slipPath) update.slip_url = slipPath;
     let q = supabase.from('sales').update(update);
-    if (pm.bulk) q = q.eq('customer_id', pm.customerId).eq('paid', false).gte('sale_date', pm.from).lte('sale_date', pm.to);
+    // Paying from the document register targets the exact sales the invoice
+    // froze, so a sale added later inside the same dates isn't swept in.
+    if (pm.saleIds) q = q.in('id', pm.saleIds);
+    else if (pm.bulk) q = q.eq('customer_id', pm.customerId).eq('paid', false).gte('sale_date', pm.from).lte('sale_date', pm.to);
     else q = q.eq('id', pm.saleId);
     const { error } = await q;
     if (error) { console.error('confirmPay failed', error); return; }
