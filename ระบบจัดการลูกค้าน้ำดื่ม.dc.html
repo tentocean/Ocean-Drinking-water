@@ -1337,10 +1337,9 @@
           </div>
         </div>
         <sc-if value="{{ inv.showReceiver }}" hint-placeholder-val="{{ false }}">
-          <div class="no-break" style="display:flex;justify-content:space-between;gap:30px;margin-top:44px;font-size:12.5px;color:#555;text-align:center">
-            <div style="flex:1">.................................................<div style="margin-top:6px">ผู้รับสินค้า / ผู้ซื้อ</div></div>
-            <div style="flex:1">
-              .................................................
+          <div class="no-break" style="display:flex;justify-content:flex-start;gap:30px;margin-top:44px;font-size:12.5px;color:#555;text-align:left">
+            <div style="flex:0 0 46%">
+              <div style="text-align:center;font-weight:600;color:#333;border-bottom:1px dotted #999;padding-bottom:3px;min-height:15px"><sc-if value="{{ inv.showReceiverName }}" hint-placeholder-val="{{ false }}"><span>ฐาปนพงษ์</span></sc-if></div>
               <div style="margin-top:6px">ผู้รับเงิน</div>
               <div style="margin-top:4px;color:#777">วันที่ {{ inv.docDateF }}</div>
             </div>
@@ -2260,7 +2259,7 @@ class Component extends DCLogic {
       V.inv = {
         docNo: issued ? issued.docNo : 'ร่าง — ยังไม่ออกเลข',
         dateF: dateLabel, isRange, rangeShort: this.invRangeLabel(o.range),
-        docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
+        docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery', showReceiverName: docType === 'taxreceipt', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
         copies: (docType === 'taxreceipt' || docType === 'delivery') ? [{ label: '(ต้นฉบับ)' }, { label: '(สำเนา)' }] : [{ label: '' }],
         bank: this.SELLER.bank, payNotify: this.SELLER.payNotify,
         custName: custNameF, custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
