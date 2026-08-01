@@ -2298,13 +2298,30 @@ class Component extends DCLogic {
     if (error || !profile || profile.role !== 'owner') { await supabase.auth.signOut(); return; }
     this.setState({ authed: true, role: 'owner' });
   }
+  // PostgREST caps a single select at 1000 rows, so once a table grows past
+  // that, a plain .select('*') silently drops the newest rows — a saved sale
+  // would land beyond row 1000 and never show in the list. fetchAll pages
+  // through in 1000-row windows (ordered by a unique column so paging is
+  // stable) and returns every row.
+  async fetchAll(makeQuery) {
+    const pageSize = 1000; let from = 0; let all = [];
+    for (;;) {
+      const { data, error } = await makeQuery().range(from, from + pageSize - 1);
+      if (error) { console.error('fetchAll failed', error); break; }
+      if (!data || !data.length) break;
+      all = all.concat(data);
+      if (data.length < pageSize) break;
+      from += pageSize;
+    }
+    return all;
+  }
   async loadData() {
-    const [{ data: customers }, { data: sales }, { data: expenses }, { data: factory }, { data: invoices }] = await Promise.all([
-      supabase.from('customers').select('*'),
-      supabase.from('sales').select('*'),
-      supabase.from('expenses').select('*'),
-      supabase.from('factory_expenses').select('*'),
-      supabase.from('invoices').select('*').order('doc_no', { ascending: false }),
+    const [customers, sales, expenses, factory, invoices] = await Promise.all([
+      this.fetchAll(() => supabase.from('customers').select('*').order('id')),
+      this.fetchAll(() => supabase.from('sales').select('*').order('id')),
+      this.fetchAll(() => supabase.from('expenses').select('*').order('id')),
+      this.fetchAll(() => supabase.from('factory_expenses').select('*').order('id')),
+      this.fetchAll(() => supabase.from('invoices').select('*').order('doc_no', { ascending: false })),
     ]);
     const slipPaths = (sales || []).filter(s => s.slip_url).map(s => s.slip_url);
     let signedMap = {};
