@@ -893,7 +893,7 @@
             <tbody>
               <sc-for list="{{ docRows }}" as="r" hint-placeholder-count="4">
                 <tr style="{{ r.rowStyle }}">
-                  <td style="padding:11px 14px;font-weight:600;color:#123a5e" class="mono">{{ r.docNo }}</td>
+                  <td style="padding:11px 14px;font-weight:600;color:#123a5e" class="mono">{{ r.docNo }}<div class="mono" style="font-size:10px;color:#1c7a52;font-weight:600;margin-top:2px">{{ r.pairedLabel }}</div></td>
                   <td style="padding:11px 14px;color:#4a5a6a">{{ r.dateF }}</td>
                   <td style="padding:11px 14px;color:#4a5a6a">{{ r.typeShort }}</td>
                   <td style="padding:11px 14px">{{ r.custName }}<div style="font-size:11px;color:#a6afb8">{{ r.periodF }}</div></td>
@@ -1261,6 +1261,11 @@
           <button onClick="{{ printInvoice }}" style="padding:9px 18px;background:#123a5e;color:#fff;border:none;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer">🖨 พิมพ์ / บันทึก PDF</button>
         </div>
         <div style="flex-basis:100%;font-size:12px;{{ invStatusStyle }}">{{ invStatusText }}</div>
+        <div style="flex-basis:100%;height:1px;background:#eef1f4;margin:2px 0"></div>
+        <div style="flex-basis:100%;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+          <button onClick="{{ issuePair }}" disabled="{{ invPairDisabled }}" style="{{ invPairStyle }}">{{ invPairLabel }}</button>
+          <span style="font-size:11.5px;flex:1;min-width:200px;{{ invPairStatusStyle }}">{{ invPairStatusText }}</span>
+        </div>
       </div>
       <sc-for list="{{ inv.copies }}" as="copy" hint-placeholder-count="1">
       <div class="tax-invoice" style="background:#fff;color:#1a1a1a;width:794px;max-width:100%;min-height:1123px;margin:0 auto 14px;box-sizing:border-box;padding:58px 50px 46px;border-radius:6px;font-size:14px;line-height:1.6">
@@ -2167,15 +2172,26 @@ class Component extends DCLogic {
         partial: { label: '🟡 จ่ายบางส่วน', style: 'background:#fdf3e3;color:#b45309' },
         unpaid:  { label: '🔴 ค้างชำระ',    style: 'background:#fdecea;color:#b4453a' },
       };
+      // ใบวางบิล (BL) กับ ใบส่งสินค้า (DN) ที่ออกคู่กันจะมีลูกค้า + ช่วงเวลา
+      // เดียวกันเป๊ะ (ไม่ต้องเก็บ link ใน DB) — จับคู่จากตรงนั้นเพื่อโชว์ป้าย
+      const PAIR_OF = { billing: 'delivery', delivery: 'billing' };
+      const findPartner = v => {
+        const pt = PAIR_OF[v.docType];
+        if (!pt || v.status !== 'issued') return null;
+        return st.invoices.find(x => x.status === 'issued' && x.docType === pt
+          && x.customerId === v.customerId && x.from === v.from && x.to === v.to) || null;
+      };
       V.docRows = shown.map(v => {
         const cancelledRow = v.status === 'cancelled';
         const p = payOf[v.id];
+        const partner = findPartner(v);
         const badge = cancelledRow
           ? { label: 'ยกเลิก', style: 'background:#eef1f4;color:#8a94a0' }
           : PAY_BADGE[p.state];
         const days = this.daysOverdue(v);
         return {
           docNo: v.docNo, dateF: this.fmtDate(v.docDate), typeShort: this.docTypeInfo(v.docType).short,
+          pairedLabel: partner ? ('🔗 คู่กับ ' + partner.docNo) : '',
           custName: v.custName, periodF: v.from === v.to ? this.fmtDate(v.from) : (this.fmtDate(v.from) + ' – ' + this.fmtDate(v.to)),
           grandF: this.fmt2(v.grand),
           paidF: (!cancelledRow && p.paid > 0.01) ? this.fmt2(p.paid) : '–',
@@ -2270,6 +2286,34 @@ class Component extends DCLogic {
         items,
         baseF: this.fmt2(base), vatF: this.fmt2(vat), grandF: this.fmt2(grand), words: this.bahtText(grand),
       };
+
+      // "ออกคู่": ใบวางบิล (BL) + ใบส่งสินค้า/ใบกำกับภาษี (DN) พร้อมกัน สำหรับ
+      // ลูกค้า + ช่วงเวลาเดียวกัน แต่ละใบยังได้เลขรันของตัวเอง และกันออกซ้ำราย
+      // ชนิด (findIssued) เหมือนปุ่มออกเดี่ยว
+      const blIssued = this.findIssued(o.customerId, 'billing', from, to);
+      const dnIssued = this.findIssued(o.customerId, 'delivery', from, to);
+      const pairFull = !!blIssued && !!dnIssued;
+      const canIssuePair = !pairFull && raw.length > 0 && !st.docIssuing;
+      V.invPairDisabled = !canIssuePair;
+      V.invPairStyle = 'padding:9px 18px;border:none;border-radius:9px;font-size:13px;font-weight:600;'
+        + (canIssuePair ? 'background:#1c5f96;color:#fff;cursor:pointer' : 'background:#e8ecf0;color:#9aa5b1;cursor:not-allowed');
+      V.invPairLabel = st.docIssuing ? 'กำลังออกเลข…'
+        : pairFull ? '✓ ออกคู่แล้ว'
+        : (blIssued || dnIssued) ? '🔒 ออกใบที่เหลือให้ครบคู่'
+        : '🔒 ออกใบวางบิล + ใบส่งสินค้า พร้อมกัน';
+      V.invPairStatusText = pairFull
+        ? ('✓ ออกครบคู่แล้ว: ' + blIssued.docNo + ' + ' + dnIssued.docNo + ' — พิมพ์ซ้ำได้ไม่จำกัด')
+        : blIssued ? ('มีใบวางบิล ' + blIssued.docNo + ' แล้ว — กดเพื่อออกใบส่งสินค้า/ใบกำกับภาษีให้คู่กัน (ช่วงเดียวกัน)')
+        : dnIssued ? ('มีใบส่งสินค้า ' + dnIssued.docNo + ' แล้ว — กดเพื่อออกใบวางบิลให้คู่กัน (ช่วงเดียวกัน)')
+        : raw.length === 0 ? 'ไม่มีรายการขายในช่วงนี้ — ออกไม่ได้'
+        : 'ออกทีเดียวได้ทั้งใบวางบิล (BL) + ใบส่งสินค้า/ใบกำกับภาษี (DN) สำหรับลูกค้า + ช่วงเวลานี้';
+      V.invPairStatusStyle = pairFull ? 'color:#157a52;font-weight:600' : (raw.length === 0 ? 'color:#b4453a' : 'color:#8a94a0');
+      V.issuePair = () => this.issueInvoicePair({
+        docDate, from, to, customerId: o.customerId,
+        custName: custNameF, custAddr: cust.address || '', custTaxId: custTaxRaw,
+        base, vat, grand, items, employeeId: cust.employeeId,
+        saleIds: raw.map(s => s.id),
+      });
     } else { V.invoiceOpen = false; }
     V.closeInvoice = () => this.setState({ invoiceOrder: null });
     V.printInvoice = () => window.print();
@@ -2501,9 +2545,10 @@ class Component extends DCLogic {
     return this.state.invoices.find(v => v.status === 'issued' && v.customerId === customerId
       && v.docType === docType && v.from === from && v.to === to) || null;
   }
-  async issueInvoice(payload) {
-    if (this.state.docIssuing) return;
-    this.setState({ docIssuing: true });
+  // Allocates one running number + files one invoice row. Caller owns the
+  // docIssuing flag and the state merge so this can be reused for both the
+  // single-issue and the issue-both-together flows.
+  async _issueOne(payload) {
     const { data, error } = await supabase.rpc('issue_invoice', {
       p_doc_type: payload.docType, p_doc_date: payload.docDate, p_from: payload.from, p_to: payload.to,
       p_customer_id: payload.customerId, p_cust_name: payload.custName, p_cust_addr: payload.custAddr,
@@ -2511,10 +2556,37 @@ class Component extends DCLogic {
       p_items: payload.items, p_employee_id: payload.employeeId || null,
       p_sale_ids: payload.saleIds || [],
     });
+    if (error) return { error };
+    return { row: this.mapInvoice(data) };
+  }
+  async issueInvoice(payload) {
+    if (this.state.docIssuing) return;
+    this.setState({ docIssuing: true });
+    const { row, error } = await this._issueOne(payload);
     this.setState({ docIssuing: false });
     if (error) { console.error('issue_invoice failed', error); window.alert('ออกเลขเอกสารไม่สำเร็จ: ' + error.message); return; }
-    const row = this.mapInvoice(data);
     this.setState(s => ({ invoices: [row, ...s.invoices] }));
+  }
+  // Issue ใบวางบิล (BL) + ใบส่งสินค้า/ใบกำกับภาษี (DN) together for the same
+  // customer + period + sales. Each still gets its own correct running number.
+  // A type already issued for this exact customer+period is skipped (reused),
+  // so re-clicking never burns a second number — mirrors findIssued's guard.
+  async issueInvoicePair(shared) {
+    if (this.state.docIssuing) return;
+    this.setState({ docIssuing: true });
+    const newRows = [];
+    for (const docType of ['billing', 'delivery']) {
+      if (this.findIssued(shared.customerId, docType, shared.from, shared.to)) continue;
+      const { row, error } = await this._issueOne({ ...shared, docType });
+      if (error) {
+        this.setState({ docIssuing: false });
+        if (newRows.length) this.setState(s => ({ invoices: [...newRows, ...s.invoices] }));
+        console.error('issue pair failed', error); window.alert('ออกเลขเอกสารไม่สำเร็จ: ' + error.message); return;
+      }
+      newRows.push(row);
+    }
+    this.setState({ docIssuing: false });
+    if (newRows.length) this.setState(s => ({ invoices: [...newRows, ...s.invoices] }));
   }
   async cancelInvoice(id, docNo) {
     const reason = window.prompt('ยกเลิกเอกสาร ' + docNo + '\nเลขที่นี้จะถูกเก็บไว้ในทะเบียนและใช้ซ้ำไม่ได้\n\nเหตุผลในการยกเลิก:');
