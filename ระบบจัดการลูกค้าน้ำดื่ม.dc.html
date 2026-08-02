@@ -671,7 +671,7 @@
             <tbody>
               <sc-for list="{{ salesRows }}" as="s" hint-placeholder-count="6">
                 <tr style="border-top:1px solid #eef2f5">
-                  <td style="padding:11px 16px;font-weight:500">{{ s.customerName }}</td>
+                  <td style="padding:11px 16px;font-weight:500">{{ s.customerName }}<div class="mono" style="font-weight:400;color:#9aa4af;font-size:11.5px;margin-top:2px">🕐 {{ s.timeF }}</div></td>
                   <sc-if value="{{ showEmpCol }}" hint-placeholder-val="{{ false }}"><td style="padding:11px 12px;color:#6b7787;font-size:12.5px">{{ s.employeeName }}</td></sc-if>
                   <td style="padding:11px 12px;color:#4a5a6a">{{ s.typeLabel }}</td>
                   <td style="padding:11px 12px;text-align:right" class="mono">{{ s.qty }}</td>
@@ -1494,6 +1494,9 @@ class Component extends DCLogic {
     return text;
   }
   fmtDate(iso) { const d = new Date(iso + 'T00:00:00'); const m = ['ม.ค.', 'ก.พ.', 'มี.ค.', 'เม.ย.', 'พ.ค.', 'มิ.ย.', 'ก.ค.', 'ส.ค.', 'ก.ย.', 'ต.ค.', 'พ.ย.', 'ธ.ค.']; return d.getDate() + ' ' + m[d.getMonth()] + ' ' + (d.getFullYear() + 543); }
+  // created_at is a timestamptz; new Date() parses the offset and getHours()/
+  // getMinutes() render it in the device's local time (Thailand for all users).
+  fmtTime(ts) { if (!ts) return ''; const d = new Date(ts); if (isNaN(d)) return ''; return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0') + ' น.'; }
   isoLocal(d) { return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); }
   typeLabel(k) { const t = this.TYPES.find(x => x.key === k); return t ? t.label : k; }
   empName(id) { const e = this.EMP.find(x => x.id === id); return e ? e.name : '—'; }
@@ -1810,7 +1813,7 @@ class Component extends DCLogic {
 
     // ---- SALES VIEW ----
     const salesEmp = effEmp;
-    const dayRows = st.sales.filter(s => s.date === st.selectedDate && (salesEmp === null || s.employeeId === salesEmp)).sort((a, b) => a.paid - b.paid);
+    const dayRows = st.sales.filter(s => s.date === st.selectedDate && (salesEmp === null || s.employeeId === salesEmp)).sort((a, b) => (a.createdAt || '') < (b.createdAt || '') ? 1 : -1);
     V.showEmpCol = showCompany;
     V.salesScopeLabel = showCompany ? '· ทุกคน' : '· ' + this.empName(salesEmp);
     V.salesCount = dayRows.length;
@@ -1819,6 +1822,7 @@ class Component extends DCLogic {
     V.salesRows = dayRows.map(s => ({
       customerName: this.custName(s.customerId), employeeName: this.empName(s.employeeId),
       typeLabel: this.typeLabel(s.type), qty: s.qty, priceF: this.fmt(s.price), totalF: this.fmt(s.total),
+      timeF: this.fmtTime(s.createdAt),
       paid: s.paid, unpaid: !s.paid,
       paidLabel: this.payLabel(s),
       badgeBg: s.method === 'transfer' ? '#e6eef7' : '#e7f3ec', badgeFg: s.method === 'transfer' ? '#1c5f96' : '#157a52',
@@ -2331,7 +2335,7 @@ class Component extends DCLogic {
     }
     this.setState({
       customers: (customers || []).map(c => ({ id: c.id, name: c.name, invoiceName: c.invoice_name || '', phone: c.phone || '', address: c.address || '', taxId: c.tax_id || '', contact: c.contact || '', employeeId: c.employee_id })),
-      sales: (sales || []).map(s => ({ id: s.id, groupId: s.group_id, date: s.sale_date, employeeId: s.employee_id, customerId: s.customer_id, type: s.type, qty: +s.qty, price: +s.price, total: +s.total, method: s.method, paid: s.paid, paidDate: s.paid_date, slip: s.slip_url ? (signedMap[s.slip_url] || null) : null })),
+      sales: (sales || []).map(s => ({ id: s.id, groupId: s.group_id, date: s.sale_date, employeeId: s.employee_id, customerId: s.customer_id, type: s.type, qty: +s.qty, price: +s.price, total: +s.total, method: s.method, paid: s.paid, paidDate: s.paid_date, createdAt: s.created_at, slip: s.slip_url ? (signedMap[s.slip_url] || null) : null })),
       expenses: (expenses || []).map(e => ({ id: e.id, date: e.expense_date, employeeId: e.employee_id, category: e.category, amount: +e.amount, note: e.note || '' })),
       factory: (factory || []).map(f => ({ id: f.id, date: f.entry_date, cat: f.category, variant: f.variant || '', qty: +(f.qty || 0), unitPrice: +(f.unit_price || 0), total: +f.total, note: f.note || '' })),
       invoices: (invoices || []).map(this.mapInvoice),
