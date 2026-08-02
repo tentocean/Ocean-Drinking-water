@@ -2513,6 +2513,15 @@ class Component extends DCLogic {
     await this.loadData();
   }
   async deleteSale(id) {
+    // Guard: a sale already frozen onto an issued (non-cancelled) document must
+    // not be deleted — doing so leaves the document with a stale total and a
+    // dangling sale_id (this is how DN6908-0002 ended up at ฿787.52 instead of
+    // ฿738.30). Force the proper route: cancel the document first, then edit.
+    const doc = this.state.invoices.find(v => v.status === 'issued' && (v.saleIds || []).includes(id));
+    if (doc) {
+      window.alert('ลบไม่ได้ — รายการขายนี้ถูกใช้ในเอกสาร ' + doc.docNo + ' ที่ออกเลขแล้ว\n\nถ้าต้องแก้จำนวน/ราคา ให้ไปที่ "ทะเบียนเอกสาร" กดยกเลิก ' + doc.docNo + ' ก่อน แล้วค่อยลบ/คีย์รายการนี้ใหม่ และออกเอกสารใหม่');
+      return;
+    }
     if (typeof window !== 'undefined' && window.confirm && !window.confirm('ลบรายการขายนี้?')) return;
     const { error } = await supabase.from('sales').delete().eq('id', id);
     if (error) { console.error('deleteSale failed', error); return; }
