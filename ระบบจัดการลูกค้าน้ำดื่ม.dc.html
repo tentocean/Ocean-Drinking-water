@@ -1447,9 +1447,9 @@ class Component extends DCLogic {
   // in the sales-tax report (a ใบวางบิล isn't a tax invoice).
   DOCT = [
     { key: 'taxreceipt',  prefix: 'IV', short: 'ใบกำกับภาษี/ใบเสร็จ',  title: 'ใบกำกับภาษี / ใบเสร็จรับเงิน', sub: 'TAX INVOICE / RECEIPT',        vat: true },
-    { key: 'delivery',    prefix: 'DN', short: 'ใบส่งสินค้า',          title: 'ใบส่งสินค้า / ใบกำกับภาษี',    sub: 'DELIVERY NOTE / TAX INVOICE',  vat: true },
-    { key: 'cash',        prefix: 'RC', short: 'ใบเสร็จ/บิลเงินสด',    title: 'ใบเสร็จรับเงิน / บิลเงินสด',   sub: 'RECEIPT / CASH BILL',          vat: false },
+    { key: 'delivery',    prefix: 'DN', short: 'ใบส่งสินค้า/ใบกำกับภาษี', title: 'ใบส่งสินค้า / ใบกำกับภาษี',    sub: 'DELIVERY NOTE / TAX INVOICE',  vat: true },
     { key: 'billing',     prefix: 'BL', short: 'ใบวางบิล',             title: 'ใบวางบิล / ใบแจ้งหนี้',        sub: 'BILLING NOTE / INVOICE',       vat: false },
+    { key: 'cash',        prefix: 'RC', short: 'ใบเสร็จ/บิลเงินสด',    title: 'ใบเสร็จรับเงิน / บิลเงินสด',   sub: 'RECEIPT / CASH BILL',          vat: false },
     { key: 'invdelivery', prefix: 'IN', short: 'ใบแจ้งหนี้/บิลส่งของ', title: 'ใบแจ้งหนี้ / บิลส่งของ',       sub: 'INVOICE / DELIVERY NOTE',      vat: false },
   ];
   docTypeInfo(k) { return this.DOCT.find(d => d.key === k) || { short: k, title: k, sub: '', vat: false }; }
