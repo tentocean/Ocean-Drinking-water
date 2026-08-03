@@ -874,53 +874,72 @@
         <button onClick="{{ toggleDocOwing }}" style="{{ docOwingToggleStyle }}">{{ docOwingToggleLabel }}</button>
       </div>
 
-      <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;overflow:hidden">
-        <div class="m-scroll" style="overflow-x:auto">
-          <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:900px">
-            <thead>
-              <tr style="background:#f7f9fb;color:#6b7787;text-align:left">
-                <th style="padding:10px 14px;font-weight:600">เลขที่</th>
-                <th style="padding:10px 14px;font-weight:600">วันที่</th>
-                <th style="padding:10px 14px;font-weight:600">ประเภท</th>
-                <th style="padding:10px 14px;font-weight:600">ลูกค้า</th>
-                <th style="padding:10px 14px;font-weight:600;text-align:right">ยอดรวม</th>
-                <th style="padding:10px 14px;font-weight:600;text-align:right">ชำระแล้ว</th>
-                <th style="padding:10px 14px;font-weight:600;text-align:right">คงค้าง</th>
-                <th style="padding:10px 14px;font-weight:600">สถานะ</th>
-                <th style="padding:10px 14px;font-weight:600"></th>
-              </tr>
-            </thead>
-            <tbody>
-              <sc-for list="{{ docRows }}" as="r" hint-placeholder-count="4">
-                <tr style="{{ r.rowStyle }}">
-                  <td style="padding:11px 14px;font-weight:600;color:#123a5e" class="mono">{{ r.docNo }}<div class="mono" style="font-size:10px;color:#1c7a52;font-weight:600;margin-top:2px">{{ r.pairedLabel }}</div></td>
-                  <td style="padding:11px 14px;color:#4a5a6a">{{ r.dateF }}</td>
-                  <td style="padding:11px 14px;color:#4a5a6a">{{ r.typeShort }}</td>
-                  <td style="padding:11px 14px">{{ r.custName }}<div style="font-size:11px;color:#a6afb8">{{ r.periodF }}</div></td>
-                  <td style="padding:11px 14px;text-align:right;font-weight:600" class="mono">{{ r.grandF }}</td>
-                  <td style="padding:11px 14px;text-align:right;{{ r.paidStyle }}" class="mono">{{ r.paidF }}</td>
-                  <td style="padding:11px 14px;text-align:right;{{ r.owedStyle }}" class="mono">{{ r.owedF }}</td>
-                  <td style="padding:11px 14px">
-                    <span style="{{ r.statusStyle }}">{{ r.statusLabel }}</span>
-                    <div style="font-size:10.5px;color:#b4453a;margin-top:3px">{{ r.ageLabel }}</div>
-                    <div style="font-size:10.5px;color:#a6afb8;margin-top:3px">{{ r.paidOnLabel }}</div>
-                  </td>
-                  <td style="padding:11px 14px;white-space:nowrap">
-                    <sc-if value="{{ r.canPay }}" hint-placeholder-val="{{ true }}">
-                      <button onClick="{{ r.onPay }}" style="margin-right:6px;border:1px solid #cfe6d9;background:#f2faf6;color:#157a52;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">💵 รับชำระ</button>
-                    </sc-if>
-                    <button onClick="{{ r.onReprint }}" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">🖨 พิมพ์ซ้ำ</button>
-                    <sc-if value="{{ r.canCancel }}" hint-placeholder-val="{{ true }}">
-                      <button onClick="{{ r.onCancel }}" style="margin-left:6px;border:1px solid #f0d2ce;background:#fdf6f5;color:#b4453a;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">ยกเลิก</button>
-                    </sc-if>
-                  </td>
-                </tr>
-              </sc-for>
-            </tbody>
-          </table>
-        </div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        <sc-for list="{{ docGroups }}" as="g" hint-placeholder-count="4">
+          <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;overflow:hidden">
+            <button onClick="{{ g.onToggle }}" style="width:100%;display:flex;align-items:center;gap:12px;padding:13px 16px;background:#f7f9fb;border:none;cursor:pointer;text-align:left;font-family:inherit">
+              <span class="mono" style="font-size:13px;color:#8a94a0;width:14px">{{ g.chevron }}</span>
+              <span style="flex:1;min-width:0">
+                <span style="display:block;font-size:14.5px;font-weight:600;color:#123a5e">{{ g.custName }}</span>
+                <span style="display:block;font-size:11.5px;color:#a6afb8">{{ g.countLabel }} · ล่าสุด {{ g.lastNo }}</span>
+              </span>
+              <span style="text-align:right">
+                <span style="display:block;font-size:10.5px;color:#8a94a0">ยอดรวม</span>
+                <span class="mono" style="font-size:14.5px;font-weight:600;color:#123a5e">{{ g.totalF }}</span>
+              </span>
+              <span style="text-align:right;min-width:74px">
+                <span style="display:block;font-size:10.5px;color:#8a94a0">ค้างชำระ</span>
+                <span class="mono" style="font-size:14.5px;font-weight:600;{{ g.owedStyle }}">{{ g.owedF }}</span>
+              </span>
+            </button>
+            <sc-if value="{{ g.open }}" hint-placeholder-val="{{ false }}">
+              <div class="m-scroll" style="overflow-x:auto;border-top:1px solid #eef2f5">
+                <table style="width:100%;border-collapse:collapse;font-size:13px;min-width:760px">
+                  <thead>
+                    <tr style="background:#fbfcfd;color:#6b7787;text-align:left">
+                      <th style="padding:9px 14px;font-weight:600">เลขที่</th>
+                      <th style="padding:9px 14px;font-weight:600">วันที่</th>
+                      <th style="padding:9px 14px;font-weight:600">ประเภท</th>
+                      <th style="padding:9px 14px;font-weight:600;text-align:right">ยอดรวม</th>
+                      <th style="padding:9px 14px;font-weight:600;text-align:right">ชำระแล้ว</th>
+                      <th style="padding:9px 14px;font-weight:600;text-align:right">คงค้าง</th>
+                      <th style="padding:9px 14px;font-weight:600">สถานะ</th>
+                      <th style="padding:9px 14px;font-weight:600"></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <sc-for list="{{ g.rows }}" as="r" hint-placeholder-count="3">
+                      <tr style="{{ r.rowStyle }}">
+                        <td style="padding:11px 14px;font-weight:600;color:#123a5e" class="mono">{{ r.docNo }}<div class="mono" style="font-size:10px;color:#1c7a52;font-weight:600;margin-top:2px">{{ r.pairedLabel }}</div></td>
+                        <td style="padding:11px 14px;color:#4a5a6a">{{ r.dateF }}</td>
+                        <td style="padding:11px 14px;color:#4a5a6a">{{ r.typeShort }}<div style="font-size:11px;color:#a6afb8">{{ r.periodF }}</div></td>
+                        <td style="padding:11px 14px;text-align:right;font-weight:600" class="mono">{{ r.grandF }}</td>
+                        <td style="padding:11px 14px;text-align:right;{{ r.paidStyle }}" class="mono">{{ r.paidF }}</td>
+                        <td style="padding:11px 14px;text-align:right;{{ r.owedStyle }}" class="mono">{{ r.owedF }}</td>
+                        <td style="padding:11px 14px">
+                          <span style="{{ r.statusStyle }}">{{ r.statusLabel }}</span>
+                          <div style="font-size:10.5px;color:#b4453a;margin-top:3px">{{ r.ageLabel }}</div>
+                          <div style="font-size:10.5px;color:#a6afb8;margin-top:3px">{{ r.paidOnLabel }}</div>
+                        </td>
+                        <td style="padding:11px 14px;white-space:nowrap">
+                          <sc-if value="{{ r.canPay }}" hint-placeholder-val="{{ true }}">
+                            <button onClick="{{ r.onPay }}" style="margin-right:6px;border:1px solid #cfe6d9;background:#f2faf6;color:#157a52;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">💵 รับชำระ</button>
+                          </sc-if>
+                          <button onClick="{{ r.onReprint }}" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">🖨 พิมพ์ซ้ำ</button>
+                          <sc-if value="{{ r.canCancel }}" hint-placeholder-val="{{ true }}">
+                            <button onClick="{{ r.onCancel }}" style="margin-left:6px;border:1px solid #f0d2ce;background:#fdf6f5;color:#b4453a;cursor:pointer;border-radius:7px;padding:4px 10px;font-size:11.5px;font-weight:600">ยกเลิก</button>
+                          </sc-if>
+                        </td>
+                      </tr>
+                    </sc-for>
+                  </tbody>
+                </table>
+              </div>
+            </sc-if>
+          </div>
+        </sc-for>
         <sc-if value="{{ docEmpty }}" hint-placeholder-val="{{ false }}">
-          <div style="padding:44px 20px;text-align:center;color:#a6afb8">
+          <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;padding:44px 20px;text-align:center;color:#a6afb8">
             <div style="font-size:30px;margin-bottom:8px">📁</div>
             <div style="font-size:13.5px">ยังไม่มีเอกสารที่ออกเลขในช่วงนี้</div>
             <div style="font-size:12px;margin-top:4px">ออกเอกสารได้จากแท็บ “ลูกค้า” → เลือกลูกค้า → 🧾 ออกใบกำกับภาษี</div>
@@ -1473,7 +1492,7 @@ class Component extends DCLogic {
     search: '', selectedCustomerId: null, suggestOpen: false, payModal: null, slipView: null, invoiceOrder: null, custEdit: null,
     typeFilter: 'all', expFilter: 'all', plPeriod: 'month', facPeriod: 'month',
     custRange: 'all', custFrom: '', custTo: '',
-    docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false, docOnlyOwing: false,
+    docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false, docOnlyOwing: false, docOpenGroups: {},
     saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] },
     expForm: { category: 'ค่าน้ำมัน', amount: '', note: '' },
     facForm: { cat: 'cap', variant: '', qty: '', unitPrice: '', total: '', note: '' },
@@ -2191,7 +2210,7 @@ class Component extends DCLogic {
         return st.invoices.find(x => x.status === 'issued' && x.docType === pt
           && x.customerId === v.customerId && x.from === v.from && x.to === v.to) || null;
       };
-      V.docRows = shown.map(v => {
+      const rowVM = v => {
         const cancelledRow = v.status === 'cancelled';
         const p = payOf[v.id];
         const partner = findPartner(v);
@@ -2220,7 +2239,33 @@ class Component extends DCLogic {
           onReprint: () => this.reprintInvoice(v),
           onCancel: () => this.cancelInvoice(v.id, v.docNo),
         };
+      };
+      // Group the filtered documents by company so the register can be scanned
+      // company-by-company: each group header sums total + outstanding, and the
+      // rows fold away until tapped (docOpenGroups tracks which are open).
+      const groupMap = {};
+      shown.forEach(v => {
+        const cid = v.customerId || ('_' + (v.custName || ''));
+        if (!groupMap[cid]) groupMap[cid] = { cid, custName: this.custName(v.customerId) || v.custName || '(ไม่ระบุชื่อ)', docs: [] };
+        groupMap[cid].docs.push(v);
       });
+      V.docGroups = Object.values(groupMap).map(g => {
+        const issuedDocs = g.docs.filter(v => v.status === 'issued');
+        const total = issuedDocs.reduce((a, v) => a + v.grand, 0);
+        const owed = issuedDocs.reduce((a, v) => a + (payOf[v.id] ? payOf[v.id].outstanding : 0), 0);
+        const open = !!st.docOpenGroups[g.cid];
+        return {
+          custName: g.custName,
+          countLabel: g.docs.length + ' ใบ',
+          lastNo: g.docs.map(v => v.docNo).sort().pop(),
+          totalF: this.fmt(total),
+          owedF: owed > 0.01 ? this.fmt(owed) : '–',
+          owedStyle: owed > 0.01 ? 'color:#b4453a' : 'color:#a6afb8',
+          open, chevron: open ? '▾' : '▸',
+          onToggle: () => this.setState(s => ({ docOpenGroups: { ...s.docOpenGroups, [g.cid]: !s.docOpenGroups[g.cid] } })),
+          rows: g.docs.map(rowVM),
+        };
+      }).sort((a, b) => a.custName.localeCompare(b.custName, 'th'));
       V.docEmpty = shown.length === 0;
     }
 
