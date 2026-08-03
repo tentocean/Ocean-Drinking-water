@@ -54,6 +54,7 @@ language sql immutable as $$
     when 'taxreceipt'  then 'IV'
     when 'delivery'    then 'DN'
     when 'cash'        then 'RC'
+    when 'receipt'     then 'REC'
     when 'billing'     then 'BL'
     when 'invdelivery' then 'IN'
     else 'XX' end;

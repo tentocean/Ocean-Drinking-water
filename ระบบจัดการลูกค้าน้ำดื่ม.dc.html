@@ -1248,6 +1248,7 @@
           <option value="taxreceipt">ใบกำกับภาษี / ใบเสร็จรับเงิน</option>
           <option value="delivery">ใบส่งสินค้า / ใบกำกับภาษี</option>
           <option value="cash">ใบเสร็จรับเงิน / บิลเงินสด</option>
+          <option value="receipt">ใบเสร็จรับเงิน</option>
           <option value="billing">ใบวางบิล / ใบแจ้งหนี้</option>
           <option value="invdelivery">ใบแจ้งหนี้ / บิลส่งของ</option>
         </select>
@@ -1452,6 +1453,10 @@ class Component extends DCLogic {
     { key: 'delivery',    prefix: 'DN', short: 'ใบส่งสินค้า/ใบกำกับภาษี', title: 'ใบส่งสินค้า / ใบกำกับภาษี',    sub: 'DELIVERY NOTE / TAX INVOICE',  vat: true },
     { key: 'billing',     prefix: 'BL', short: 'ใบวางบิล',             title: 'ใบวางบิล / ใบแจ้งหนี้',        sub: 'BILLING NOTE / INVOICE',       vat: false },
     { key: 'cash',        prefix: 'RC', short: 'ใบเสร็จ/บิลเงินสด',    title: 'ใบเสร็จรับเงิน / บิลเงินสด',   sub: 'RECEIPT / CASH BILL',          vat: false },
+    // ใบเสร็จรับเงินเดี่ยว ๆ (รับเงินจากลูกค้าเครดิต) — โชว์ VAT บนเอกสาร แต่ vat:false
+    // เพื่อไม่ให้ถูกนับซ้ำใน "ภาษีขาย" ของ dashboard (ภาษีขายมาจากใบกำกับภาษีแล้ว).
+    // prefix REC ต้องเพิ่มใน doc_prefix() ฝั่ง SQL ด้วย (ดู supabase/migration-invoices.sql)
+    { key: 'receipt',     prefix: 'REC', short: 'ใบเสร็จรับเงิน',      title: 'ใบเสร็จรับเงิน',               sub: 'RECEIPT',                      vat: false },
     { key: 'invdelivery', prefix: 'IN', short: 'ใบแจ้งหนี้/บิลส่งของ', title: 'ใบแจ้งหนี้ / บิลส่งของ',       sub: 'INVOICE / DELIVERY NOTE',      vat: false },
   ];
   docTypeInfo(k) { return this.DOCT.find(d => d.key === k) || { short: k, title: k, sub: '', vat: false }; }
@@ -2283,7 +2288,7 @@ class Component extends DCLogic {
       V.inv = {
         docNo: issued ? issued.docNo : 'ร่าง — ยังไม่ออกเลข',
         dateF: dateLabel, isRange, rangeShort: this.invRangeLabel(o.range),
-        docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery', showReceiverName: docType === 'taxreceipt', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
+        docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery' || docType === 'receipt', showReceiverName: docType === 'taxreceipt' || docType === 'receipt', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
         copies: (docType === 'taxreceipt' || docType === 'delivery') ? [{ label: '(ต้นฉบับ)' }, { label: '(สำเนา)' }] : [{ label: '' }],
         bank: this.SELLER.bank, payNotify: this.SELLER.payNotify,
         custName: custNameF, custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
