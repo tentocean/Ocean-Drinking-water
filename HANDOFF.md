@@ -218,6 +218,7 @@ VAT ของการขายสินค้ามีจุดความร�
 1. **ฝั่งแอป** — เพิ่ม entry ใน `DOCT` (`key`/`prefix`/`short`/`title`/`sub`/`vat`), เพิ่ม `<option>` ใน dropdown ของ modal, และตั้ง flag ช่องลายเซ็น (`showReceiver`/`showReceiverName`/`isDelivery`/`isBilling`) + `noVat` ตามต้องการ
 2. **ฝั่ง DB (รันเองใน Supabase SQL Editor)** — ⚠️ **เลขรัน stamp โดย `doc_prefix()` ใน DB ไม่ใช่ `DOCT`** ต้องเพิ่ม `when '<key>' then '<PREFIX>'` ใน `doc_prefix()` **ก่อน**ออกเอกสารใบแรก ไม่งั้นได้เลข `XX....` (ตาราง `invoices` ไม่มี CHECK บน `doc_type` เลยไม่ต้องแก้ตาราง) — SQL อยู่ที่ `supabase/migration-receipt-doctype.sql`
 - ตัวอย่างจริง: `receipt` (prefix `REC`, มี VAT บนเอกสาร, `DOCT.vat=false`, ผู้รับเงินโชว์ชื่อ "ฐาปนพงษ์" บนเส้นเหมือน taxreceipt, พิมพ์ใบเดียว)
+- **`receipt` มีบรรทัด "อ้างอิง" ใต้วันที่** — ดึงเลข `delivery` (DN) ของลูกค้ารายเดียวกันที่ช่วงเวลาคาบเกี่ยวกัน (`v.from <= to && v.to >= from`) เฉพาะสถานะ `issued` มาแสดงอัตโนมัติ (`inv.showRef`/`inv.refLabel` ใน `renderVals`) — ข้ามใบที่ยกเลิก จึงอ้างใบที่ออกใหม่ ไม่ใช่เลขที่ตายแล้ว; หลายใบคั่นด้วย ", "; ไม่มีเลยขึ้น "—"
 
 ---
 
