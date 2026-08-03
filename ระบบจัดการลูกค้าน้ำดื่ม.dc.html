@@ -1286,6 +1286,9 @@
             <div style="font-size:12px;color:#777;margin-top:2px">{{ inv.docSub }} {{ copy.label }}</div>
             <div style="font-size:12.5px;margin-top:9px">เลขที่ <b class="mono">{{ inv.docNo }}</b></div>
             <div style="font-size:12.5px;margin-top:2px">วันที่ {{ inv.docDateF }}</div>
+            <sc-if value="{{ inv.showRef }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12.5px;margin-top:2px">อ้างอิง <b class="mono">{{ inv.refLabel }}</b></div>
+            </sc-if>
           </div>
         </div>
         <div class="no-break" style="margin:18px 0;border:1px solid #c9d0d7;border-radius:8px;padding:13px 16px">
@@ -2285,8 +2288,16 @@ class Component extends DCLogic {
         // later inside the same range must not join an already-printed invoice.
         saleIds: raw.map(s => s.id),
       });
+      // ใบเสร็จรับเงินอ้างอิงใบส่งสินค้า/ใบกำกับภาษี (DN) ของลูกค้ารายเดียวกันที่
+      // ช่วงเวลาคาบเกี่ยวกัน — ดึงเลข DN มาโชว์ใต้วันที่โดยอัตโนมัติ
+      const refDocNos = docType === 'receipt'
+        ? this.state.invoices.filter(v => v.status === 'issued' && v.docType === 'delivery'
+            && v.customerId === o.customerId && v.from <= to && v.to >= from)
+            .map(v => v.docNo).sort()
+        : [];
       V.inv = {
         docNo: issued ? issued.docNo : 'ร่าง — ยังไม่ออกเลข',
+        showRef: docType === 'receipt', refLabel: refDocNos.length ? refDocNos.join(', ') : '—',
         dateF: dateLabel, isRange, rangeShort: this.invRangeLabel(o.range),
         docTitle: dt.title, docSub: dt.sub, docDateF: this.fmtDate(docDate), showReceiver: docType === 'taxreceipt' || docType === 'cash' || docType === 'invdelivery' || docType === 'receipt', showReceiverName: docType === 'taxreceipt' || docType === 'receipt', isDelivery: docType === 'delivery', isBilling: docType === 'billing',
         copies: (docType === 'taxreceipt' || docType === 'delivery') ? [{ label: '(ต้นฉบับ)' }, { label: '(สำเนา)' }] : [{ label: '' }],
