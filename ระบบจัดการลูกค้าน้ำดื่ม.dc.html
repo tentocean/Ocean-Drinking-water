@@ -1318,8 +1318,10 @@
         <div class="no-break" style="display:flex;justify-content:space-between;gap:20px;margin-top:16px">
           <div style="flex:1;align-self:flex-end;font-size:13px;color:#333;border:1px dashed #cfd6dd;border-radius:6px;padding:10px 14px">จำนวนเงินรวมทั้งสิ้น (ตัวอักษร):<br><b>({{ inv.words }})</b></div>
           <div style="width:270px;font-size:13.5px" class="mono">
-            <div style="display:flex;justify-content:space-between;padding:5px 2px"><span style="font-family:'IBM Plex Sans Thai'">มูลค่าสินค้า</span><span>{{ inv.baseF }}</span></div>
-            <div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #d5dade"><span style="font-family:'IBM Plex Sans Thai'">ภาษีมูลค่าเพิ่ม 7%</span><span>{{ inv.vatF }}</span></div>
+            <sc-if value="{{ inv.showVat }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;justify-content:space-between;padding:5px 2px"><span style="font-family:'IBM Plex Sans Thai'">มูลค่าสินค้า</span><span>{{ inv.baseF }}</span></div>
+              <div style="display:flex;justify-content:space-between;padding:5px 2px;border-bottom:1px solid #d5dade"><span style="font-family:'IBM Plex Sans Thai'">ภาษีมูลค่าเพิ่ม 7%</span><span>{{ inv.vatF }}</span></div>
+            </sc-if>
             <div style="display:flex;justify-content:space-between;padding:10px 4px;margin-top:5px;border-top:2px solid #1a1a1a;font-weight:700;font-size:15.5px"><span style="font-family:'IBM Plex Sans Thai'">รวมทั้งสิ้น</span><span>{{ inv.grandF }}</span></div>
           </div>
         </div>
@@ -2232,7 +2234,9 @@ class Component extends DCLogic {
       const groups = Object.values(grpMap);
       const isRange = from !== to;
       const base = raw.reduce((a, s) => a + s.total, 0);
-      const vat = base * 0.07, grand = base + vat;
+      // ใบเสร็จรับเงิน/บิลเงินสด (cash) ไม่คิด VAT — ยอดรวม = มูลค่าสินค้า
+      const noVat = (o.docType || 'taxreceipt') === 'cash';
+      const vat = noVat ? 0 : base * 0.07, grand = base + vat;
       const dateLabel = isRange ? (this.fmtDate(from) + ' – ' + this.fmtDate(to)) : this.fmtDate(from);
       V.invoiceOpen = true;
       V.invRangeItems = [['day', 'วันเดียว'], ['month', 'เดือนนี้'], ['quarter', 'ไตรมาสนี้'], ['year', 'ปีนี้'], ['custom', 'กำหนดเอง']].map(([k, l]) => ({ label: l, style: chip(o.range === k), onClick: () => this.setInvoiceRange(k) }));
@@ -2284,6 +2288,7 @@ class Component extends DCLogic {
         bank: this.SELLER.bank, payNotify: this.SELLER.payNotify,
         custName: custNameF, custAddr: cust.address || '-', custPhone: custPhoneRaw, custHasPhone: custPhoneRaw !== '' && custPhoneRaw !== '-', custTaxId: custTaxRaw, custHasTax: custTaxRaw !== '' && custTaxRaw !== '-',
         items,
+        showVat: !noVat,
         baseF: this.fmt2(base), vatF: this.fmt2(vat), grandF: this.fmt2(grand), words: this.bahtText(grand),
       };
 
