@@ -1600,10 +1600,11 @@ class Component extends DCLogic {
     const packKeys = ['1500ml', '600ml', '350ml'];
     const qPack = packKeys.reduce((a, k) => a + ((bd[k] && bd[k].qty) || 0), 0);
     const unlocked = q18 >= 120;
-    // แจ็ค (e1): ค่าแรงพื้นฐาน = ถัง 18.9 ล. × ฿3 (สูงสุด ฿600)
+    // แจ็ค (e1): ค่าแรงพื้นฐาน = ถัง 18.9 ล. × ฿3 (สูงสุด ฿600) คิดเมื่อขายถัง ≥ 112 เท่านั้น
     const isJack = empId === 'e1';
+    const jackWageOn = q18 >= 112;
     const cq18 = cashQ18 || 0;
-    const wage = isJack ? Math.min(q18 * 3, 600) : (q18 >= 90 ? 450 : 0);
+    const wage = isJack ? (jackWageOn ? Math.min(q18 * 3, 600) : 0) : (q18 >= 90 ? 450 : 0);
     const comm18 = isJack ? cq18 * 3 : (unlocked ? this.tierComm(q18) : 0);
     const commPack = isJack ? qPack : (unlocked ? this.tierComm(qPack) : 0);
     const tierNote = (q, unit) => q <= 150 ? (nf(q) + ' ' + unit + ' × ฿1') : ('150 × ฿1 + ' + nf(q - 150) + ' × ฿3');
@@ -1612,7 +1613,9 @@ class Component extends DCLogic {
       {
         label: 'ค่าแรงพื้นฐาน',
         sub: isJack
-          ? ('ขายถัง ' + nf(q18) + ' × ฿3' + (q18 * 3 > 600 ? ' — เต็มเพดาน ฿600' : ' (สูงสุด ฿600)'))
+          ? (jackWageOn
+              ? ('ขายถัง ' + nf(q18) + ' × ฿3' + (q18 * 3 > 600 ? ' — เต็มเพดาน ฿600' : ' (≥ 112 ✓, สูงสุด ฿600)'))
+              : ('ขายถัง ' + nf(q18) + ' — ยังไม่ถึง 112 ถัง'))
           : (wage > 0 ? ('ขายถัง ' + nf(q18) + ' (≥ 90 ✓)') : ('ขายถัง ' + nf(q18) + ' — ยังไม่ถึง 90 ถัง')),
         valueF: this.fmt(wage), valColor: wage > 0 ? '#157a52' : muted,
       },
@@ -1633,7 +1636,7 @@ class Component extends DCLogic {
     ];
     return { q18F: nf(q18), qPackF: nf(qPack), rows, total: wage + comm18 + commPack, totalF: this.fmt(wage + comm18 + commPack),
       criteria: (isJack
-        ? 'เกณฑ์: ค่าแรง = ถัง 18.9 ล. × ฿3 (สูงสุด ฿600) · ค่าคอมถัง = ถัง 18.9 ล. ที่ขายเงินสด × ฿3 · ค่าคอมแพ็ค = แพ็ค (1500·600·350ml) รวม × ฿1'
+        ? 'เกณฑ์: ค่าแรง = ถัง 18.9 ล. × ฿3 (สูงสุด ฿600) คิดเมื่อขายถัง ≥ 112 · ค่าคอมถัง = ถัง 18.9 ล. ที่ขายเงินสด × ฿3 · ค่าคอมแพ็ค = แพ็ค (1500·600·350ml) รวม × ฿1'
         : 'เกณฑ์: ค่าแรง ฿450 เมื่อขายถัง 18.9 ล. ≥ 90 ถัง · ค่าคอมถัง เริ่มที่ 120 ถัง (ถังละ ฿1 ถึงถังที่ 150, ส่วนเกินตั้งแต่ 151 ถังละ ฿3) · ค่าคอมแพ็ค เริ่มเมื่อขายถัง ≥ 120 (แพ็คละ ฿1 ถึงแพ็คที่ 150, ส่วนเกินตั้งแต่ 151 แพ็คละ ฿3)') };
   }
   facDesc(f) {
