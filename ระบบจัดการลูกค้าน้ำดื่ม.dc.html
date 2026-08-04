@@ -842,7 +842,7 @@
           <sc-for list="{{ docPeriodItems }}" as="p" hint-placeholder-count="4"><button onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</button></sc-for>
         </div>
         <div style="font-size:13px;color:#6b7787">ช่วง: <b style="color:#123a5e">{{ docRangeLabel }}</b></div>
-        <input value="{{ docSearch }}" onChange="{{ onDocSearch }}" placeholder="ค้นหาเลขที่เอกสาร หรือชื่อลูกค้า…" style="margin-left:auto;min-width:240px;padding:9px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:13px" />
+        <input value="{{ docSearch }}" onChange="{{ onDocSearch }}" placeholder="ค้นหาเลขที่เอกสาร ชื่อลูกค้า หรือยอดเงิน…" style="margin-left:auto;min-width:240px;padding:9px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:13px" />
       </div>
 
       <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-bottom:16px">
@@ -2146,7 +2146,14 @@ class Component extends DCLogic {
       const shown = inRange
         .filter(v => st.docTypeFilter === 'all' || v.docType === st.docTypeFilter)
         .filter(v => !st.docOnlyOwing || (v.status === 'issued' && payOf[v.id].state !== 'paid'))
-        .filter(v => !q || v.docNo.toLowerCase().includes(q) || (v.custName || '').toLowerCase().includes(q))
+        .filter(v => {
+          if (!q) return true;
+          if (v.docNo.toLowerCase().includes(q) || (v.custName || '').toLowerCase().includes(q)) return true;
+          // ค้นด้วยยอดเงิน: ตัด comma/ช่องว่างออก แล้วเทียบกับยอดรวมของเอกสาร
+          // (พิมพ์ "787" เจอ 787.52 · พิมพ์ "787.52" ก็เจอแบบเป๊ะ)
+          const qNum = q.replace(/[,\s]/g, '');
+          return /^[\d.]+$/.test(qNum) && (v.grand.toFixed(2).includes(qNum) || String(Math.round(v.grand)).includes(qNum));
+        })
         // Unpaid first, then newest — the register is mostly used to chase money.
         .sort((a, b) => {
           const ao = a.status === 'issued' && payOf[a.id].state !== 'paid';
