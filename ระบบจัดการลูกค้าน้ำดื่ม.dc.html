@@ -989,7 +989,7 @@
           <div style="font-size:14.5px;font-weight:600;margin-bottom:13px">เพิ่มรายการต้นทุน</div>
           <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">หมวดต้นทุน
             <select value="{{ facForm.cat }}" onChange="{{ onFacCat }}" style="width:100%;margin-top:5px;padding:10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;background:#fff">
-              <sc-for list="{{ facCatOptions }}" as="o" hint-placeholder-count="9"><option value="{{ o.key }}">{{ o.label }}</option></sc-for>
+              <sc-for list="{{ facCatOptions }}" as="o" hint-placeholder-count="11"><option value="{{ o.key }}">{{ o.label }}</option></sc-for>
             </select>
           </label>
           <sc-if value="{{ facShowVariant }}" hint-placeholder-val="{{ false }}">
@@ -1452,7 +1452,7 @@ class Component extends DCLogic {
     { key: '350ml', label: 'แพ็ค 350ml', short: '350ml', price: 35 },
     { key: 'coupon', label: 'คูปอง 1 เล่ม (30 ใบ)', short: 'คูปอง', price: 1050 },
   ];
-  FCAT_ORDER = ['cap', 'bottle', 'label', 'pvc', 'tank', 'maintain', 'carfix', 'water', 'power', 'other'];
+  FCAT_ORDER = ['cap', 'bottle', 'label', 'pvc', 'tank', 'maintain', 'carfix', 'water', 'power', 'labor', 'other'];
   FCATS = {
     cap: { label: 'ค่าฝา', mode: 'unit' },
     bottle: { label: 'ค่าขวด', mode: 'variantTotal', variants: ['350ml', '500ml', '600ml', '1500ml'] },
@@ -1463,6 +1463,7 @@ class Component extends DCLogic {
     carfix: { label: 'ค่าซ่อมรถ', mode: 'total' },
     water: { label: 'ค่าน้ำ (ประปา)', mode: 'total' },
     power: { label: 'ค่าไฟ', mode: 'total' },
+    labor: { label: 'ค่าแรง', mode: 'total' },
     other: { label: 'อื่นๆ', mode: 'totalNote' },
   };
   // Fallback shown only during the brief window before the real list loads from Supabase.
