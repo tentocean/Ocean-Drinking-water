@@ -523,7 +523,7 @@
             <div class="mono" style="font-size:19px;font-weight:700;color:#123a5e">{{ det.pay.qPackF }} <span style="font-size:12px;font-weight:400;color:#8a94a0">แพ็ค</span></div>
           </div>
         </div>
-        <sc-for list="{{ det.pay.rows }}" as="r" hint-placeholder-count="3">
+        <sc-for list="{{ det.pay.rows }}" as="r" hint-placeholder-count="4">
           <div style="display:flex;align-items:center;gap:12px;padding:10px 0;border-bottom:1px solid #f2f5f7">
             <div style="flex:1">
               <div style="font-size:13.5px;font-weight:500;color:#1f2a37">{{ r.label }}</div>
@@ -1553,6 +1553,15 @@ class Component extends DCLogic {
   typeLabel(k) { const t = this.TYPES.find(x => x.key === k); return t ? t.label : k; }
   empName(id) { const e = this.EMP.find(x => x.id === id); return e ? e.name : '—'; }
   custName(id) { const c = (this.state.customers || []).find(x => x.id === id); return c ? c.name : '—'; }
+  // Companies whose 18.9L barrels earn Jack an extra ฿2/barrel commission.
+  // Matched by substring against both the short name and the invoice (legal) name.
+  JACK_COMM_COMPANIES = ['เคป', 'วิลลิช', 'ไฟฟ้านิคม', 'ไฟฟ้าบ้านฉาง'];
+  isJackCommCompany(id) {
+    const c = (this.state.customers || []).find(x => x.id === id);
+    if (!c) return false;
+    const hay = (c.name || '') + ' ' + (c.invoiceName || '');
+    return this.JACK_COMM_COMPANIES.some(k => hay.includes(k));
+  }
   customers() { return this.state.customers || []; }
   payLabel(s) { const m = s.method === 'transfer' ? 'โอน' : 'เงินสด'; return s.paidDate === s.date ? m : (m + ' ' + this.fmtDate(s.paidDate)); }
   typeBreakdown(empId, a, b) {
@@ -1612,7 +1621,7 @@ class Component extends DCLogic {
   // ---- ค่าแรง & ค่าคอมมิชชั่น ----
   // tiered: units 1..150 at ฿1, units 151+ at ฿3
   tierComm(qty) { if (qty <= 0) return 0; return qty <= 150 ? qty : 150 + (qty - 150) * 3; }
-  payCalc(bd, empId, cashQ18) {
+  payCalc(bd, empId, cashQ18, companyQ18) {
     const nf = n => n.toLocaleString('en-US');
     const q18 = (bd['18.9L'] && bd['18.9L'].qty) || 0;
     const packKeys = ['1500ml', '600ml', '350ml'];
@@ -1622,8 +1631,11 @@ class Component extends DCLogic {
     const isJack = empId === 'e1';
     const jackWageOn = q18 >= 112;
     const cq18 = cashQ18 || 0;
+    const coq18 = companyQ18 || 0;
     const wage = isJack ? (jackWageOn ? Math.min(q18 * 3, 600) : 0) : (q18 >= 90 ? 450 : 0);
     const comm18 = isJack ? cq18 * 3 : (unlocked ? this.tierComm(q18) : 0);
+    // เฉพาะแจ็ค: ถัง 18.9 ล. (ไม่ใช่เงินสด) ที่ขายให้ เคป/วิลลิช/ไฟฟ้านิคม/ไฟฟ้าบ้านฉาง × ฿2
+    const commCompany = isJack ? coq18 * 2 : 0;
     const commPack = isJack ? qPack : (unlocked ? this.tierComm(qPack) : 0);
     const tierNote = (q, unit) => q <= 150 ? (nf(q) + ' ' + unit + ' × ฿1') : ('150 × ฿1 + ' + nf(q - 150) + ' × ฿3');
     const muted = '#a6afb8';
@@ -1652,9 +1664,18 @@ class Component extends DCLogic {
         valueF: this.fmt(commPack), valColor: commPack > 0 ? '#157a52' : muted,
       },
     ];
-    return { q18F: nf(q18), qPackF: nf(qPack), rows, total: wage + comm18 + commPack, totalF: this.fmt(wage + comm18 + commPack),
+    // เฉพาะแจ็ค: แถวค่าคอมถังของบริษัทเครดิต (เคป·วิลลิช·ไฟฟ้านิคม·ไฟฟ้าบ้านฉาง) — แทรกต่อจากค่าคอมถังปกติ
+    if (isJack) {
+      rows.splice(2, 0, {
+        label: 'ค่าคอมฯ ถัง 18.9 ล. (บริษัทเครดิต)',
+        sub: nf(coq18) + ' ถัง (เคป·วิลลิช·ไฟฟ้านิคม·ไฟฟ้าบ้านฉาง) × ฿2',
+        valueF: this.fmt(commCompany), valColor: commCompany > 0 ? '#157a52' : muted,
+      });
+    }
+    const total = wage + comm18 + commCompany + commPack;
+    return { q18F: nf(q18), qPackF: nf(qPack), rows, total, totalF: this.fmt(total),
       criteria: (isJack
-        ? 'เกณฑ์: ค่าแรง = ถัง 18.9 ล. × ฿3 (สูงสุด ฿600) คิดเมื่อขายถัง ≥ 112 · ค่าคอมถัง = ถัง 18.9 ล. ที่ขายเงินสด × ฿3 · ค่าคอมแพ็ค = แพ็ค (1500·600·350ml) รวม × ฿1'
+        ? 'เกณฑ์: ค่าแรง = ถัง 18.9 ล. × ฿3 (สูงสุด ฿600) คิดเมื่อขายถัง ≥ 112 · ค่าคอมถัง = ถัง 18.9 ล. ที่ขายเงินสด × ฿3 · ค่าคอมถังบริษัทเครดิต (เคป·วิลลิช·ไฟฟ้านิคม·ไฟฟ้าบ้านฉาง) = ถัง 18.9 ล. ที่ไม่ใช่เงินสด × ฿2 · ค่าคอมแพ็ค = แพ็ค (1500·600·350ml) รวม × ฿1'
         : 'เกณฑ์: ค่าแรง ฿450 เมื่อขายถัง 18.9 ล. ≥ 90 ถัง · ค่าคอมถัง เริ่มที่ 120 ถัง (ถังละ ฿1 ถึงถังที่ 150, ส่วนเกินตั้งแต่ 151 ถังละ ฿3) · ค่าคอมแพ็ค เริ่มเมื่อขายถัง ≥ 120 (แพ็คละ ฿1 ถึงแพ็คที่ 150, ส่วนเกินตั้งแต่ 151 แพ็คละ ฿3)') };
   }
   facDesc(f) {
@@ -1827,7 +1848,9 @@ class Component extends DCLogic {
       const m = focusM;
       const dayExp = st.expenses.filter(e => e.employeeId === focusEmp.id && e.date >= R.a && e.date <= R.b && (st.expFilter === 'all' || e.category === st.expFilter)).sort((a, b) => a.date < b.date ? 1 : -1);
       const cashQ18 = st.sales.filter(s => s.employeeId === focusEmp.id && s.date >= R.a && s.date <= R.b && s.type === '18.9L' && s.paid && s.method === 'cash').reduce((a, s) => a + s.qty, 0);
-      const payC = this.payCalc(this.typeBreakdown(focusEmp.id, R.a, R.b), focusEmp.id, cashQ18);
+      // แจ็ค: ถัง 18.9 ล. (ไม่ใช่เงินสด) ที่ขายให้บริษัทเครดิต เคป/วิลลิช/ไฟฟ้านิคม/ไฟฟ้าบ้านฉาง — ได้คอมถังละ ฿2 (กันนับซ้ำกับคอมเงินสด ฿3)
+      const companyQ18 = st.sales.filter(s => s.employeeId === focusEmp.id && s.date >= R.a && s.date <= R.b && s.type === '18.9L' && s.method !== 'cash' && this.isJackCommCompany(s.customerId)).reduce((a, s) => a + s.qty, 0);
+      const payC = this.payCalc(this.typeBreakdown(focusEmp.id, R.a, R.b), focusEmp.id, cashQ18, companyQ18);
       // Employees see how much they sold (ถัง/แพ็ค) but not the baht they earned —
       // only the owner sees the wage/commission amounts. Values stay in payC so the
       // net-profit maths below is unaffected; this only masks the display.
