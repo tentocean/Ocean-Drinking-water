@@ -987,6 +987,9 @@
         <!-- add cost -->
         <div style="background:#fff;border:1px solid #e5e9ee;border-radius:12px;padding:18px">
           <div style="font-size:14.5px;font-weight:600;margin-bottom:13px">เพิ่มรายการต้นทุน</div>
+          <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">วันที่บันทึก
+            <input type="date" value="{{ facAddDate }}" onChange="{{ onFacDate }}" style="width:100%;margin-top:5px;padding:10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;background:#fff" />
+          </label>
           <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">หมวดต้นทุน
             <select value="{{ facForm.cat }}" onChange="{{ onFacCat }}" style="width:100%;margin-top:5px;padding:10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;background:#fff">
               <sc-for list="{{ facCatOptions }}" as="o" hint-placeholder-count="11"><option value="{{ o.key }}">{{ o.label }}</option></sc-for>
@@ -1024,7 +1027,7 @@
           <sc-if value="{{ facShowNote }}" hint-placeholder-val="{{ false }}">
             <input value="{{ facForm.note }}" onChange="{{ onFacNote }}" placeholder="หมายเหตุ" style="width:100%;padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13px;margin-bottom:12px" />
           </sc-if>
-          <div style="font-size:11.5px;color:#a6afb8;margin-bottom:8px">บันทึกลงวันที่ <b style="color:#6b7787">{{ facAddDateLabel }}</b> · เลื่อนวันที่ด้านบนเพื่อเปลี่ยน</div>
+          <div style="font-size:11.5px;color:#a6afb8;margin-bottom:8px">บันทึกลงวันที่ <b style="color:#6b7787">{{ facAddDateLabel }}</b></div>
           <button onClick="{{ addFactory }}" style="width:100%;padding:11px;background:#1c5f96;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">+ บันทึกต้นทุน</button>
         </div>
       </div>
@@ -2049,6 +2052,8 @@ class Component extends DCLogic {
     const fx = st.factory.filter(f => f.date >= fr.a && f.date <= fr.b);
     V.facGrandTotalF = this.fmt(fx.reduce((a, f) => a + f.total, 0));
     V.facAddDateLabel = this.fmtDate(st.selectedDate);
+    V.facAddDate = st.selectedDate;
+    V.onFacDate = e => { if (e.target.value) this.setState({ selectedDate: e.target.value }); };
     V.facSummary = this.FCAT_ORDER.map(k => ({ label: this.FCATS[k].label, totalF: this.fmt(fx.filter(f => f.cat === k).reduce((a, f) => a + f.total, 0)) }));
     V.facGroups = this.FCAT_ORDER.map(k => {
       const items = fx.filter(f => f.cat === k).sort((a, b) => a.date < b.date ? 1 : -1);
