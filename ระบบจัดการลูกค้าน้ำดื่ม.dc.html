@@ -509,7 +509,8 @@
         </div>
       </div>
 
-      <!-- wage & commission breakdown -->
+      <!-- wage & commission breakdown (ซ่อนสำหรับ แปดริ้ว/OEM ที่ไม่มีค่าแรง-ค่าคอม) -->
+      <sc-if value="{{ det.showPay }}" hint-placeholder-val="{{ true }}">
       <div style="margin-top:16px;background:#fff;border:1px solid #e5e9ee;border-radius:12px;padding:18px">
         <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
           <div style="font-size:14.5px;font-weight:600">ค่าแรง &amp; ค่าคอมมิชชั่น — {{ det.name }}</div>
@@ -542,6 +543,7 @@
           {{ det.pay.criteria }}
         </div>
       </div>
+      </sc-if>
       </sc-if>
     </div>
     </sc-if>
@@ -1631,13 +1633,15 @@ class Component extends DCLogic {
     const unlocked = q18 >= 120;
     // แจ็ค (e1) ค่าแรงพื้นฐาน: <112 ถัง = ฿0 · 112–169 ถัง = ฿300 · ≥170 ถัง = ถัง 18.9 ล. × ฿3 (สูงสุด ฿600)
     const isJack = empId === 'e1';
+    // แปดริ้ว (e3) และ OEM/ETC (e4): ไม่มีค่าแรง/ค่าคอม — การ์ดถูกซ่อนและไม่หักจากกำไรสุทธิ
+    const noPay = empId === 'e3' || empId === 'e4';
     const cq18 = cashQ18 || 0;
     const coq18 = companyQ18 || 0;
-    const wage = isJack ? (q18 < 112 ? 0 : (q18 < 170 ? 300 : Math.min(q18 * 3, 600))) : (q18 >= 90 ? 450 : 0);
-    const comm18 = isJack ? cq18 * 3 : (unlocked ? this.tierComm(q18) : 0);
+    const wage = noPay ? 0 : (isJack ? (q18 < 112 ? 0 : (q18 < 170 ? 300 : Math.min(q18 * 3, 600))) : (q18 >= 90 ? 450 : 0));
+    const comm18 = noPay ? 0 : (isJack ? cq18 * 3 : (unlocked ? this.tierComm(q18) : 0));
     // เฉพาะแจ็ค: ถัง 18.9 ล. (ไม่ใช่เงินสด) ที่ขายให้ เคป/วิลลิช/ไฟฟ้านิคม/ไฟฟ้าบ้านฉาง × ฿2
     const commCompany = isJack ? coq18 * 2 : 0;
-    const commPack = isJack ? qPack : (unlocked ? this.tierComm(qPack) : 0);
+    const commPack = noPay ? 0 : (isJack ? qPack : (unlocked ? this.tierComm(qPack) : 0));
     const tierNote = (q, unit) => q <= 150 ? (nf(q) + ' ' + unit + ' × ฿1') : ('150 × ฿1 + ' + nf(q - 150) + ' × ฿3');
     const muted = '#a6afb8';
     const rows = [
@@ -1676,7 +1680,7 @@ class Component extends DCLogic {
       });
     }
     const total = wage + comm18 + commCompany + commPack;
-    return { q18F: nf(q18), qPackF: nf(qPack), rows, total, totalF: this.fmt(total),
+    return { q18F: nf(q18), qPackF: nf(qPack), rows, total, totalF: this.fmt(total), noPay,
       criteria: (isJack
         ? 'เกณฑ์: ค่าแรง = <112 ถัง ฿0 · 112–169 ถัง ฿300 · ≥170 ถัง คิดถัง 18.9 ล. × ฿3 (สูงสุด ฿600) · ค่าคอมถัง = ถัง 18.9 ล. ที่ขายเงินสด × ฿3 · ค่าคอมถังบริษัทเครดิต (เคป·วิลลิช·ไฟฟ้านิคม·ไฟฟ้าบ้านฉาง) = ถัง 18.9 ล. ที่ไม่ใช่เงินสด × ฿2 · ค่าคอมแพ็ค = แพ็ค (1500·600·350ml) รวม × ฿1'
         : 'เกณฑ์: ค่าแรง ฿450 เมื่อขายถัง 18.9 ล. ≥ 90 ถัง · ค่าคอมถัง เริ่มที่ 120 ถัง (ถังละ ฿1 ถึงถังที่ 150, ส่วนเกินตั้งแต่ 151 ถังละ ฿3) · ค่าคอมแพ็ค เริ่มเมื่อขายถัง ≥ 120 (แพ็คละ ฿1 ถึงแพ็คที่ 150, ส่วนเกินตั้งแต่ 151 แพ็คละ ฿3)') };
@@ -1867,7 +1871,7 @@ class Component extends DCLogic {
       const debtColl = st.sales.filter(s => s.employeeId === focusEmp.id && s.paid && s.paidDate && s.paidDate >= R.a && s.paidDate <= R.b && s.paidDate > s.date).sort((x, y) => x.paidDate < y.paidDate ? -1 : 1);
       V.det = {
         name: focusEmp.name, isDay,
-        pay: payView,
+        pay: payView, showPay: !payC.noPay,
         hasDebtCollected: debtColl.length > 0,
         debtCollectedCount: debtColl.length,
         debtCollectedTotalF: this.fmt(debtColl.reduce((a, s) => a + s.total, 0)),
