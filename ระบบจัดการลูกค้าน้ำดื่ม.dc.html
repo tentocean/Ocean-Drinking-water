@@ -598,7 +598,12 @@
                 </select>
                 <input value="{{ l.qty }}" onChange="{{ l.onQty }}" inputmode="numeric" placeholder="จำนวน" style="padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
                 <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
-                  <input value="{{ l.price }}" onChange="{{ l.onPrice }}" inputmode="numeric" placeholder="ราคา/หน่วย" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
+                  <sc-if value="{{ l.priceEditable }}" hint-placeholder-val="{{ true }}">
+                    <input value="{{ l.price }}" onChange="{{ l.onPrice }}" inputmode="numeric" placeholder="ราคา/หน่วย" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
+                  </sc-if>
+                  <sc-if value="{{ l.priceReadonly }}" hint-placeholder-val="{{ false }}">
+                    <div style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #e4e9ee;border-radius:8px;font-size:13.5px;text-align:right;background:#f1f4f7;color:#123a5e;font-weight:600">฿{{ l.price }}</div>
+                  </sc-if>
                   <sc-if value="{{ l.locked }}" hint-placeholder-val="{{ false }}">
                     <div style="font-size:10.5px;color:#157a52;font-weight:600;line-height:1.3">🔒 ราคาล็อกลูกค้านี้</div>
                   </sc-if>
@@ -1960,8 +1965,13 @@ class Component extends DCLogic {
       const tdef = this.TYPES.find(x => x.key === l.type);
       const presets = (tdef && tdef.prices && tdef.prices.length > 1) ? tdef.prices : [];
       const lockedPrice = this.custPrice(sf.customerId, l.type);
+      // Employees can't change a locked price: show it read-only and hide the
+      // preset buttons. The owner (who sets the locks) keeps full editing.
+      const priceReadonly = lockedPrice != null && !isOwner;
       return {
-        type: l.type, qty: l.qty, price: l.price, totalF: this.fmt(qn * pn), hasPresets: presets.length > 1,
+        type: l.type, qty: l.qty, price: l.price, totalF: this.fmt(qn * pn),
+        hasPresets: presets.length > 1 && !priceReadonly,
+        priceReadonly, priceEditable: !priceReadonly,
         locked: lockedPrice != null && String(lockedPrice) === String(l.price),
         removeStyle: 'border:none;background:none;cursor:' + (canRemove ? 'pointer' : 'default') + ';color:' + (canRemove ? '#c3ccd4' : '#eceff2') + ';font-size:18px;padding:0',
         pricePresets: presets.map(p => ({
