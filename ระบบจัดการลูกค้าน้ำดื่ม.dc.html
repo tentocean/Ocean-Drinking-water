@@ -1258,15 +1258,21 @@
       <sc-if value="{{ isOwner }}" hint-placeholder-val="{{ true }}">
       <div style="margin-bottom:14px;padding:12px;border:1px solid #e4e9ee;border-radius:10px;background:#fafcfe">
         <div style="font-size:12px;color:#123a5e;font-weight:700;margin-bottom:3px">🔒 ล็อกราคาต่อประเภทสินค้า</div>
-        <div style="font-size:11px;color:#8a95a1;margin-bottom:10px">ตั้งราคาเฉพาะลูกค้ารายนี้ เว้นว่างไว้ = ใช้ราคาปกติ · เวลาบันทึกการขายราคาจะขึ้นให้อัตโนมัติ (เฉพาะแอดมินตั้งได้)</div>
-        <sc-for list="{{ cePriceRows }}" as="p" hint-placeholder-count="7">
-          <label style="display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:13px;color:#4a5a6a">
-            <span style="flex:1">{{ p.label }}</span>
-            <select value="{{ p.value }}" onChange="{{ p.onChange }}" style="width:150px;padding:8px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13px;background:#fff">
-              <sc-for list="{{ p.options }}" as="o" hint-placeholder-count="2"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+        <div style="font-size:11px;color:#8a95a1;margin-bottom:10px">เลือกประเภทสินค้าและราคาที่ต้องการล็อกเฉพาะลูกค้ารายนี้ · ประเภทที่ไม่ได้เพิ่ม = ใช้ราคาปกติ · เวลาบันทึกการขายราคาจะขึ้นให้อัตโนมัติ (เฉพาะแอดมินตั้งได้)</div>
+        <sc-for list="{{ cePriceLocks }}" as="p" hint-placeholder-count="1">
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:8px">
+            <select value="{{ p.typeValue }}" onChange="{{ p.onType }}" style="flex:1;padding:8px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13px;background:#fff">
+              <sc-for list="{{ p.typeOptions }}" as="o" hint-placeholder-count="3"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
             </select>
-          </label>
+            <select value="{{ p.priceValue }}" onChange="{{ p.onPrice }}" style="width:120px;padding:8px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13px;background:#fff">
+              <sc-for list="{{ p.priceOptions }}" as="o" hint-placeholder-count="2"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+            </select>
+            <button onClick="{{ p.onRemove }}" title="ลบราคาล็อก" style="border:none;background:none;cursor:pointer;color:#c3ccd4;font-size:18px;padding:0 2px">×</button>
+          </div>
         </sc-for>
+        <sc-if value="{{ canAddPriceLock }}" hint-placeholder-val="{{ true }}">
+          <button onClick="{{ addPriceLock }}" style="background:#eef4f9;color:#1c5f96;border:1px dashed #b8d0e4;border-radius:8px;padding:8px 14px;font-size:13px;font-weight:600;cursor:pointer">+ เพิ่มราคาล็อก</button>
+        </sc-if>
       </div>
       </sc-if>
       <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:18px">พนักงานที่ดูแล (สาย)
@@ -2199,17 +2205,35 @@ class Component extends DCLogic {
       V.ceIsNew = ce.id == null;
       V.ceTitle = ce.id == null ? 'เพิ่มลูกค้าใหม่' : 'แก้ไขข้อมูลลูกค้า';
       V.ceEmpOptions = this.EMP.map(e => ({ id: e.id, name: e.name, sel: e.id === ce.employeeId }));
-      V.cePriceRows = this.TYPES.map(t => {
-        const cur = (ce.customPrices && ce.customPrices[t.key] != null) ? String(ce.customPrices[t.key]) : '';
-        // Options = "ราคาปกติ" (no lock) + each real price for this type. A value
-        // saved earlier that isn't a standard price is kept as a "กำหนดเอง" option
-        // so the dropdown never silently drops it.
-        const cand = (t.prices && t.prices.length) ? t.prices : [t.price];
-        const seen = {}; const options = [{ value: '', label: 'ราคาปกติ (฿' + t.price + ')' }];
-        cand.forEach(p => { const v = String(p); if (!seen[v]) { seen[v] = 1; options.push({ value: v, label: '฿' + p }); } });
-        if (cur && !seen[cur]) options.push({ value: cur, label: '฿' + cur + ' (กำหนดเอง)' });
-        return { key: t.key, label: t.label, value: cur, options, onChange: e => this.setCePrice(t.key, e.target.value) };
+      // Price-lock editor: a dynamic list where each row picks a product TYPE
+      // (dropdown) and a PRICE (dropdown). Rows live in ce.priceLockRows; the
+      // customers.custom_prices map is rebuilt from them in saveCustomer().
+      const lockRows = ce.priceLockRows || [];
+      const usedTypes = lockRows.map(r => r.type).filter(Boolean);
+      V.cePriceLocks = lockRows.map((r, i) => {
+        const tdef = this.TYPES.find(x => x.key === r.type);
+        // Type options: every type not already picked in another row (keep this row's own).
+        const typeOptions = [{ value: '', label: 'เลือกประเภทสินค้า' }].concat(
+          this.TYPES.filter(t => t.key === r.type || usedTypes.indexOf(t.key) === -1).map(t => ({ value: t.key, label: t.label }))
+        );
+        // Price options for the chosen type (real prices only; a non-standard saved
+        // value is kept as "กำหนดเอง" so it is never silently dropped).
+        const priceOptions = [{ value: '', label: tdef ? 'เลือกราคา' : '—' }];
+        if (tdef) {
+          const cand = (tdef.prices && tdef.prices.length) ? tdef.prices : [tdef.price];
+          const seen = {};
+          cand.forEach(p => { const v = String(p); if (!seen[v]) { seen[v] = 1; priceOptions.push({ value: v, label: '฿' + p }); } });
+          if (r.price && !seen[String(r.price)]) priceOptions.push({ value: String(r.price), label: '฿' + r.price + ' (กำหนดเอง)' });
+        }
+        return {
+          typeValue: r.type || '', typeOptions, onType: e => this.setPriceLockType(i, e.target.value),
+          priceValue: r.price ? String(r.price) : '', priceOptions, onPrice: e => this.setPriceLockPrice(i, e.target.value),
+          onRemove: () => this.removePriceLock(i),
+        };
       });
+      V.hasPriceLocks = lockRows.length > 0;
+      V.canAddPriceLock = usedTypes.length < this.TYPES.length;
+      V.addPriceLock = () => this.addPriceLock();
     } else { V.custEditOpen = false; }
     V.onCeField = (f) => (e => this.setState(s => ({ custEdit: { ...s.custEdit, [f]: e.target.value } })));
     V.onCeName = V.onCeField('name'); V.onCePhone = V.onCeField('phone'); V.onCeAddr = V.onCeField('address'); V.onCeInvoiceName = V.onCeField('invoiceName');
@@ -2217,11 +2241,11 @@ class Component extends DCLogic {
     V.onCeContact = V.onCeField('contact'); V.onCeEmp = V.onCeField('employeeId');
     V.saveCustomer = () => this.saveCustomer();
     V.cancelCustEdit = () => this.setState({ custEdit: null });
-    V.editCustomer = () => { const c = st.customers.find(x => x.id === st.selectedCustomerId); if (c) this.setState({ custEdit: { ...c, customPrices: { ...(c.customPrices || {}) } } }); };
+    V.editCustomer = () => { const c = st.customers.find(x => x.id === st.selectedCustomerId); if (c) this.setState({ custEdit: { ...c, customPrices: { ...(c.customPrices || {}) }, priceLockRows: Object.keys(c.customPrices || {}).map(k => ({ type: k, price: String(c.customPrices[k]) })) } }); };
     V.deleteCustomer = () => this.deleteCustomer();
     V.payAllCust = () => { if (st.selectedCustomerId) this.openBulkPay(st.selectedCustomerId); };
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
-    V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id, customPrices: {} } });
+    V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id, customPrices: {}, priceLockRows: [] } });
 
     // ---------- ทะเบียนเอกสาร (issued-document dashboard) ----------
     {
@@ -2817,22 +2841,18 @@ class Component extends DCLogic {
     const b = this.invRangeBounds(range);
     this.setState({ invoiceOrder: { ...o, range, from: b.from, to: b.to } });
   }
-  // Edit one product type's locked price in the customer form. An empty field
-  // removes the lock for that type (falls back to the default TYPES price).
-  setCePrice(key, val) {
-    const clean = val.replace(/[^0-9.]/g, '');
-    this.setState(s => {
-      const cp = { ...(s.custEdit.customPrices || {}) };
-      if (clean === '') delete cp[key]; else cp[key] = clean;
-      return { custEdit: { ...s.custEdit, customPrices: cp } };
-    });
-  }
+  // Price-lock editor rows (customer form). Each row = { type, price };
+  // saveCustomer() turns the rows into the custom_prices map.
+  addPriceLock() { this.setState(s => ({ custEdit: { ...s.custEdit, priceLockRows: [...(s.custEdit.priceLockRows || []), { type: '', price: '' }] } })); }
+  setPriceLockType(i, type) { this.setState(s => ({ custEdit: { ...s.custEdit, priceLockRows: (s.custEdit.priceLockRows || []).map((r, idx) => idx === i ? { type, price: '' } : r) } })); }
+  setPriceLockPrice(i, price) { this.setState(s => ({ custEdit: { ...s.custEdit, priceLockRows: (s.custEdit.priceLockRows || []).map((r, idx) => idx === i ? { ...r, price } : r) } })); }
+  removePriceLock(i) { this.setState(s => ({ custEdit: { ...s.custEdit, priceLockRows: (s.custEdit.priceLockRows || []).filter((_, idx) => idx !== i) } })); }
   async saveCustomer() {
     const ce = this.state.custEdit; if (!ce || !ce.name.trim()) return;
-    // Normalise the per-customer locked prices: keep only positive numbers,
-    // drop blanks/zeros so an empty field means "use the default TYPES price".
+    // Build the per-customer locked prices from the editor rows: keep only rows
+    // with a type and a positive price (last row wins if a type repeats).
     const customPrices = {};
-    Object.keys(ce.customPrices || {}).forEach(k => { const n = parseFloat(ce.customPrices[k]); if (n > 0) customPrices[k] = n; });
+    (ce.priceLockRows || []).forEach(r => { const n = parseFloat(r.price); if (r.type && n > 0) customPrices[r.type] = n; });
     if (ce.id == null) {
       const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId, custom_prices: customPrices };
       const { data, error } = await supabase.from('customers').insert(row).select().single();
