@@ -34,10 +34,13 @@ create table if not exists customers (
   tax_id text,
   contact text,
   employee_id text references employees(id),
+  custom_prices jsonb not null default '{}'::jsonb,  -- per-customer locked price map { "<type key>": <price>, ... } (empty = use TYPES default)
   created_at timestamptz not null default now()
 );
 -- add invoice_name to databases created before this column existed
 alter table customers add column if not exists invoice_name text;
+-- add custom_prices (per-customer locked prices) to databases created before this column existed
+alter table customers add column if not exists custom_prices jsonb not null default '{}'::jsonb;
 
 create table if not exists sales (
   id uuid primary key default gen_random_uuid(),

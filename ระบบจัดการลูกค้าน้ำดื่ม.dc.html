@@ -599,6 +599,9 @@
                 <input value="{{ l.qty }}" onChange="{{ l.onQty }}" inputmode="numeric" placeholder="จำนวน" style="padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
                 <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
                   <input value="{{ l.price }}" onChange="{{ l.onPrice }}" inputmode="numeric" placeholder="ราคา/หน่วย" style="width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px;text-align:right" />
+                  <sc-if value="{{ l.locked }}" hint-placeholder-val="{{ false }}">
+                    <div style="font-size:10.5px;color:#157a52;font-weight:600;line-height:1.3">🔒 ราคาล็อกลูกค้านี้</div>
+                  </sc-if>
                   <sc-if value="{{ l.hasPresets }}" hint-placeholder-val="{{ false }}">
                     <div style="display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end">
                       <sc-for list="{{ l.pricePresets }}" as="p" hint-placeholder-count="2"><button onClick="{{ p.onClick }}" style="{{ p.style }}">{{ p.label }}</button></sc-for>
@@ -1252,6 +1255,18 @@
       <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">เลขประจำตัวผู้เสียภาษี (13 หลัก)
         <input value="{{ ce.taxId }}" onChange="{{ onCeTax }}" inputmode="numeric" maxlength="13" placeholder="เช่น 0105500000000" class="mono" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px" />
       </label>
+      <sc-if value="{{ isOwner }}" hint-placeholder-val="{{ true }}">
+      <div style="margin-bottom:14px;padding:12px;border:1px solid #e4e9ee;border-radius:10px;background:#fafcfe">
+        <div style="font-size:12px;color:#123a5e;font-weight:700;margin-bottom:3px">🔒 ล็อกราคาต่อประเภทสินค้า</div>
+        <div style="font-size:11px;color:#8a95a1;margin-bottom:10px">ตั้งราคาเฉพาะลูกค้ารายนี้ เว้นว่างไว้ = ใช้ราคาปกติ · เวลาบันทึกการขายราคาจะขึ้นให้อัตโนมัติ (เฉพาะแอดมินตั้งได้)</div>
+        <sc-for list="{{ cePriceRows }}" as="p" hint-placeholder-count="7">
+          <label style="display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:13px;color:#4a5a6a">
+            <span style="flex:1">{{ p.label }}</span>
+            <input value="{{ p.value }}" onChange="{{ p.onChange }}" inputmode="numeric" placeholder="{{ p.placeholder }}" style="width:130px;padding:8px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13px;text-align:right" />
+          </label>
+        </sc-for>
+      </div>
+      </sc-if>
       <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:18px">พนักงานที่ดูแล (สาย)
         <select value="{{ ce.employeeId }}" onChange="{{ onCeEmp }}" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px;background:#fff">
           <sc-for list="{{ ceEmpOptions }}" as="o" hint-placeholder-count="5"><option value="{{ o.id }}">{{ o.name }}</option></sc-for>
@@ -1936,8 +1951,10 @@ class Component extends DCLogic {
       const canRemove = sf.lines.length > 1;
       const tdef = this.TYPES.find(x => x.key === l.type);
       const presets = (tdef && tdef.prices && tdef.prices.length > 1) ? tdef.prices : [];
+      const lockedPrice = this.custPrice(sf.customerId, l.type);
       return {
         type: l.type, qty: l.qty, price: l.price, totalF: this.fmt(qn * pn), hasPresets: presets.length > 1,
+        locked: lockedPrice != null && String(lockedPrice) === String(l.price),
         removeStyle: 'border:none;background:none;cursor:' + (canRemove ? 'pointer' : 'default') + ';color:' + (canRemove ? '#c3ccd4' : '#eceff2') + ';font-size:18px;padding:0',
         pricePresets: presets.map(p => ({
           label: '฿' + p,
@@ -2180,6 +2197,12 @@ class Component extends DCLogic {
       V.ceIsNew = ce.id == null;
       V.ceTitle = ce.id == null ? 'เพิ่มลูกค้าใหม่' : 'แก้ไขข้อมูลลูกค้า';
       V.ceEmpOptions = this.EMP.map(e => ({ id: e.id, name: e.name, sel: e.id === ce.employeeId }));
+      V.cePriceRows = this.TYPES.map(t => ({
+        key: t.key, label: t.label,
+        placeholder: '฿' + t.price + ' (ราคาปกติ)',
+        value: (ce.customPrices && ce.customPrices[t.key] != null) ? String(ce.customPrices[t.key]) : '',
+        onChange: e => this.setCePrice(t.key, e.target.value),
+      }));
     } else { V.custEditOpen = false; }
     V.onCeField = (f) => (e => this.setState(s => ({ custEdit: { ...s.custEdit, [f]: e.target.value } })));
     V.onCeName = V.onCeField('name'); V.onCePhone = V.onCeField('phone'); V.onCeAddr = V.onCeField('address'); V.onCeInvoiceName = V.onCeField('invoiceName');
@@ -2187,11 +2210,11 @@ class Component extends DCLogic {
     V.onCeContact = V.onCeField('contact'); V.onCeEmp = V.onCeField('employeeId');
     V.saveCustomer = () => this.saveCustomer();
     V.cancelCustEdit = () => this.setState({ custEdit: null });
-    V.editCustomer = () => { const c = st.customers.find(x => x.id === st.selectedCustomerId); if (c) this.setState({ custEdit: { ...c } }); };
+    V.editCustomer = () => { const c = st.customers.find(x => x.id === st.selectedCustomerId); if (c) this.setState({ custEdit: { ...c, customPrices: { ...(c.customPrices || {}) } } }); };
     V.deleteCustomer = () => this.deleteCustomer();
     V.payAllCust = () => { if (st.selectedCustomerId) this.openBulkPay(st.selectedCustomerId); };
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
-    V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id } });
+    V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id, customPrices: {} } });
 
     // ---------- ทะเบียนเอกสาร (issued-document dashboard) ----------
     {
@@ -2514,7 +2537,7 @@ class Component extends DCLogic {
       (signed || []).forEach((s, i) => { if (s && s.signedUrl) signedMap[slipPaths[i]] = s.signedUrl; });
     }
     this.setState({
-      customers: (customers || []).map(c => ({ id: c.id, name: c.name, invoiceName: c.invoice_name || '', phone: c.phone || '', address: c.address || '', taxId: c.tax_id || '', contact: c.contact || '', employeeId: c.employee_id })),
+      customers: (customers || []).map(c => ({ id: c.id, name: c.name, invoiceName: c.invoice_name || '', phone: c.phone || '', address: c.address || '', taxId: c.tax_id || '', contact: c.contact || '', employeeId: c.employee_id, customPrices: c.custom_prices || {} })),
       sales: (sales || []).map(s => ({ id: s.id, groupId: s.group_id, date: s.sale_date, employeeId: s.employee_id, customerId: s.customer_id, type: s.type, qty: +s.qty, price: +s.price, total: +s.total, method: s.method, paid: s.paid, paidDate: s.paid_date, createdAt: s.created_at, slip: s.slip_url ? (signedMap[s.slip_url] || null) : null })),
       expenses: (expenses || []).map(e => ({ id: e.id, date: e.expense_date, employeeId: e.employee_id, category: e.category, amount: +e.amount, note: e.note || '' })),
       factory: (factory || []).map(f => ({ id: f.id, date: f.entry_date, cat: f.category, variant: f.variant || '', qty: +(f.qty || 0), unitPrice: +(f.unit_price || 0), total: +f.total, note: f.note || '' })),
@@ -2618,11 +2641,31 @@ class Component extends DCLogic {
     this.setState(s => ({ facForm: { ...s.facForm, qty: '', unitPrice: '', total: '', note: '' } }));
     await this.loadData();
   }
-  setLineType(i, key) { const t = this.TYPES.find(x => x.key === key); this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.map((l, idx) => idx === i ? { ...l, type: key, price: String(t.price) } : l) } })); }
+  // Per-customer locked price for a product type, or null if none is set.
+  custPrice(customerId, typeKey) {
+    const c = (this.state.customers || []).find(x => x.id === customerId);
+    const p = c && c.customPrices ? c.customPrices[typeKey] : null;
+    return (p != null && p !== '') ? String(p) : null;
+  }
+  // Starting price for a line: the customer's locked price if set, else the TYPES default.
+  defaultPrice(customerId, typeKey) {
+    const locked = this.custPrice(customerId, typeKey);
+    if (locked != null) return locked;
+    const t = this.TYPES.find(x => x.key === typeKey);
+    return t ? String(t.price) : '';
+  }
+  setLineType(i, key) { this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.map((l, idx) => idx === i ? { ...l, type: key, price: this.defaultPrice(s.saleForm.customerId, key) } : l) } })); }
   updateLine(i, field, val) { this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.map((l, idx) => idx === i ? { ...l, [field]: val } : l) } })); }
-  addLine() { this.setState(s => ({ saleForm: { ...s.saleForm, lines: [...s.saleForm.lines, { type: '18.9L', qty: '', price: '35' }] } })); }
+  addLine() { this.setState(s => ({ saleForm: { ...s.saleForm, lines: [...s.saleForm.lines, { type: '18.9L', qty: '', price: this.defaultPrice(s.saleForm.customerId, '18.9L') }] } })); }
   removeLine(i) { this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.length > 1 ? s.saleForm.lines.filter((_, idx) => idx !== i) : s.saleForm.lines } })); }
-  pickCust(id, name) { this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: id, customerQuery: name } })); }
+  // Picking a customer applies that customer's locked prices to any line whose
+  // type has one set (lines without a lock keep whatever price was typed).
+  pickCust(id, name) {
+    this.setState(s => {
+      const lines = s.saleForm.lines.map(l => { const locked = this.custPrice(id, l.type); return locked != null ? { ...l, price: locked } : l; });
+      return { suggestOpen: false, saleForm: { ...s.saleForm, customerId: id, customerQuery: name, lines } };
+    });
+  }
   readSlip(e, target) {
     const f = e.target.files && e.target.files[0]; if (!f) return;
     const r = new FileReader();
@@ -2767,15 +2810,29 @@ class Component extends DCLogic {
     const b = this.invRangeBounds(range);
     this.setState({ invoiceOrder: { ...o, range, from: b.from, to: b.to } });
   }
+  // Edit one product type's locked price in the customer form. An empty field
+  // removes the lock for that type (falls back to the default TYPES price).
+  setCePrice(key, val) {
+    const clean = val.replace(/[^0-9.]/g, '');
+    this.setState(s => {
+      const cp = { ...(s.custEdit.customPrices || {}) };
+      if (clean === '') delete cp[key]; else cp[key] = clean;
+      return { custEdit: { ...s.custEdit, customPrices: cp } };
+    });
+  }
   async saveCustomer() {
     const ce = this.state.custEdit; if (!ce || !ce.name.trim()) return;
+    // Normalise the per-customer locked prices: keep only positive numbers,
+    // drop blanks/zeros so an empty field means "use the default TYPES price".
+    const customPrices = {};
+    Object.keys(ce.customPrices || {}).forEach(k => { const n = parseFloat(ce.customPrices[k]); if (n > 0) customPrices[k] = n; });
     if (ce.id == null) {
-      const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
+      const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId, custom_prices: customPrices };
       const { data, error } = await supabase.from('customers').insert(row).select().single();
       if (error) { console.error('saveCustomer (insert) failed', error); window.alert('เพิ่มลูกค้าไม่สำเร็จ: ' + error.message); return; }
       this.setState({ custEdit: null, selectedCustomerId: data.id });
     } else {
-      const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId };
+      const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId, custom_prices: customPrices };
       const { error } = await supabase.from('customers').update(row).eq('id', ce.id);
       if (error) { console.error('saveCustomer (update) failed', error); window.alert('บันทึกลูกค้าไม่สำเร็จ: ' + error.message); return; }
       this.setState({ custEdit: null });
