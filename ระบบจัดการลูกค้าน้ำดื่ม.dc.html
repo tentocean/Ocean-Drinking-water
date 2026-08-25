@@ -839,6 +839,10 @@
                             <button onClick="{{ h.onPay }}" style="font-size:11.5px;padding:4px 11px;border-radius:20px;background:#fdf1e3;color:#b45309;border:1px solid #f2d9b8;cursor:pointer">ค้าง • รับชำระ</button>
                           </sc-if>
                           <button onClick="{{ h.onInvoice }}" title="ออกใบกำกับภาษี" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:3px 7px;font-size:11px;white-space:nowrap">🧾</button>
+                          <sc-if value="{{ h.canEdit }}" hint-placeholder-val="{{ true }}">
+                            <button onClick="{{ h.onEdit }}" title="แก้ไขรายการ" style="border:1px solid #dce2e8;background:#fff;color:#4a5a6a;cursor:pointer;border-radius:7px;padding:3px 7px;font-size:11px">✏️</button>
+                            <button onClick="{{ h.onDelete }}" title="ลบรายการ" style="border:1px solid #f0c9c9;background:#fdf0f0;color:#b23b3b;cursor:pointer;border-radius:7px;padding:3px 7px;font-size:11px">🗑️</button>
+                          </sc-if>
                         </span>
                       </td>
                     </tr>
@@ -1293,6 +1297,39 @@
   </div>
   </sc-if>
 
+  <!-- ============ EDIT SALE (customer history) ============ -->
+  <sc-if value="{{ saleEditOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ cancelSaleEdit }}" style="position:fixed;inset:0;z-index:66;background:rgba(16,30,45,.45);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto">
+    <div onClick="{{ stop }}" style="background:#fff;border-radius:14px;padding:22px 24px;width:100%;max-width:380px;box-shadow:0 24px 64px rgba(0,0,0,.32)">
+      <div style="font-size:16px;font-weight:700;color:#123a5e;margin-bottom:16px">แก้ไขรายการขาย</div>
+      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">วันที่ส่ง
+        <input type="date" value="{{ se.date }}" onChange="{{ onSeDate }}" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px" />
+      </label>
+      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">ประเภทสินค้า
+        <select value="{{ se.type }}" onChange="{{ onSeType }}" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px;background:#fff">
+          <sc-for list="{{ seTypeOptions }}" as="o" hint-placeholder-count="7"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+        </select>
+      </label>
+      <div style="display:flex;gap:12px;margin-bottom:14px">
+        <label style="flex:1;font-size:12px;color:#6b7787">จำนวน
+          <input value="{{ se.qty }}" onChange="{{ onSeQty }}" inputmode="numeric" style="width:100%;box-sizing:border-box;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px;text-align:right" />
+        </label>
+        <label style="flex:1;font-size:12px;color:#6b7787">ราคา/หน่วย
+          <input value="{{ se.price }}" onChange="{{ onSePrice }}" inputmode="numeric" style="width:100%;box-sizing:border-box;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px;text-align:right" />
+        </label>
+      </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;background:#f1f4f7;border-radius:9px;padding:10px 14px;margin-bottom:16px">
+        <span style="font-size:13px;color:#6b7787">ยอดรวม</span>
+        <span class="mono" style="font-size:16px;font-weight:700;color:#123a5e">{{ seTotalF }}</span>
+      </div>
+      <div style="display:flex;gap:10px">
+        <button onClick="{{ cancelSaleEdit }}" style="flex:1;padding:11px;background:#f1f4f7;color:#4a5a6a;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">ยกเลิก</button>
+        <button onClick="{{ saveSaleEdit }}" style="flex:1.4;padding:11px;background:#1c5f96;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">บันทึก</button>
+      </div>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ TAX INVOICE ============ -->
   <sc-if value="{{ invoiceOpen }}" hint-placeholder-val="{{ false }}">
   <div onClick="{{ closeInvoice }}" class="print-invoice" style="position:fixed;inset:0;z-index:70;background:rgba(16,30,45,.5);display:flex;align-items:flex-start;justify-content:center;padding:24px;overflow:auto">
@@ -1538,7 +1575,7 @@ class Component extends DCLogic {
     sales: [], expenses: [], factory: [], customers: [], invoices: [],
     role: 'owner', authed: false, authChecked: false, empChosen: false, currentEmployeeId: 'e1',
     login: { email: '', pass: '', error: '' },
-    search: '', selectedCustomerId: null, suggestOpen: false, payModal: null, slipView: null, invoiceOrder: null, custEdit: null,
+    search: '', selectedCustomerId: null, suggestOpen: false, payModal: null, slipView: null, invoiceOrder: null, custEdit: null, saleEdit: null,
     typeFilter: 'all', expFilter: 'all', plPeriod: 'month', facPeriod: 'month',
     salesTypeFilter: 'all', salesStatusFilter: 'all',
     custRange: 'all', custFrom: '', custTo: '',
@@ -2073,6 +2110,7 @@ class Component extends DCLogic {
           hasSlip: !!s.slip, onViewSlip: () => this.setState({ slipView: s.slip }),
           onPay: () => this.openPay(s.id),
           onInvoice: () => this.openInvoice(s.id),
+          canEdit: isOwner, onEdit: () => this.openSaleEdit(s.id), onDelete: () => this.deleteSale(s.id),
         })),
       };
     }
@@ -2256,6 +2294,20 @@ class Component extends DCLogic {
     V.payAllCust = () => { if (st.selectedCustomerId) this.openBulkPay(st.selectedCustomerId); };
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
     V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id, customPrices: {}, priceLockRows: [] } });
+
+    // sale edit (customer history) — owner only, guarded against issued documents
+    if (st.saleEdit) {
+      const se = st.saleEdit;
+      V.saleEditOpen = true; V.se = se;
+      V.seTypeOptions = this.TYPES.map(t => ({ value: t.key, label: t.label }));
+      V.seTotalF = this.fmt((parseFloat(se.qty) || 0) * (parseFloat(se.price) || 0));
+    } else { V.saleEditOpen = false; }
+    V.onSeDate = e => this.setState(s => ({ saleEdit: { ...s.saleEdit, date: e.target.value } }));
+    V.onSeType = e => this.setState(s => ({ saleEdit: { ...s.saleEdit, type: e.target.value } }));
+    V.onSeQty = e => this.setState(s => ({ saleEdit: { ...s.saleEdit, qty: e.target.value.replace(/[^0-9.]/g, '') } }));
+    V.onSePrice = e => this.setState(s => ({ saleEdit: { ...s.saleEdit, price: e.target.value.replace(/[^0-9.]/g, '') } }));
+    V.saveSaleEdit = () => this.saveSaleEdit();
+    V.cancelSaleEdit = () => this.setState({ saleEdit: null });
 
     // ---------- ทะเบียนเอกสาร (issued-document dashboard) ----------
     {
@@ -2730,6 +2782,32 @@ class Component extends DCLogic {
     const { error } = await supabase.from('sales').insert(rows);
     if (error) { console.error('addSale failed', error); return; }
     this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] } }));
+    await this.loadData();
+  }
+  // Open the edit modal for one sale row (owner-only in the UI). Blocks editing
+  // a sale frozen onto an issued document — same rule as deleteSale, because the
+  // document snapshotted its total/sale_ids at issue time and editing would desync it.
+  openSaleEdit(id) {
+    const s = this.state.sales.find(x => x.id === id);
+    if (!s) return;
+    const doc = this.state.invoices.find(v => v.status === 'issued' && (v.saleIds || []).includes(id));
+    if (doc) {
+      window.alert('แก้ไขไม่ได้ — รายการขายนี้ถูกใช้ในเอกสาร ' + doc.docNo + ' ที่ออกเลขแล้ว\n\nถ้าต้องแก้ ให้ไปที่ "ทะเบียนเอกสาร" กดยกเลิก ' + doc.docNo + ' ก่อน แล้วค่อยแก้รายการนี้ และออกเอกสารใหม่');
+      return;
+    }
+    this.setState({ saleEdit: { id: s.id, date: s.date, type: s.type, qty: String(s.qty), price: String(s.price) } });
+  }
+  async saveSaleEdit() {
+    const se = this.state.saleEdit; if (!se) return;
+    // Re-check the guard in case a document was issued after the modal opened.
+    const doc = this.state.invoices.find(v => v.status === 'issued' && (v.saleIds || []).includes(se.id));
+    if (doc) { window.alert('แก้ไขไม่ได้ — รายการนี้ถูกใช้ในเอกสาร ' + doc.docNo + ' แล้ว (ยกเลิกเอกสารก่อน)'); this.setState({ saleEdit: null }); return; }
+    const qty = parseFloat(se.qty) || 0, price = parseFloat(se.price) || 0;
+    if (qty <= 0) { window.alert('จำนวนต้องมากกว่า 0'); return; }
+    if (!se.date) { window.alert('กรุณาระบุวันที่'); return; }
+    const { error } = await supabase.from('sales').update({ sale_date: se.date, type: se.type, qty, price, total: qty * price }).eq('id', se.id);
+    if (error) { console.error('saveSaleEdit failed', error); window.alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
+    this.setState({ saleEdit: null });
     await this.loadData();
   }
   async deleteSale(id) {
