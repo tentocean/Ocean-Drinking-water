@@ -1262,7 +1262,9 @@
         <sc-for list="{{ cePriceRows }}" as="p" hint-placeholder-count="7">
           <label style="display:flex;align-items:center;gap:10px;margin-bottom:7px;font-size:13px;color:#4a5a6a">
             <span style="flex:1">{{ p.label }}</span>
-            <input value="{{ p.value }}" onChange="{{ p.onChange }}" inputmode="numeric" placeholder="{{ p.placeholder }}" style="width:130px;padding:8px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13px;text-align:right" />
+            <select value="{{ p.value }}" onChange="{{ p.onChange }}" style="width:150px;padding:8px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:13px;background:#fff">
+              <sc-for list="{{ p.options }}" as="o" hint-placeholder-count="2"><option value="{{ o.value }}">{{ o.label }}</option></sc-for>
+            </select>
           </label>
         </sc-for>
       </div>
@@ -2197,12 +2199,17 @@ class Component extends DCLogic {
       V.ceIsNew = ce.id == null;
       V.ceTitle = ce.id == null ? 'เพิ่มลูกค้าใหม่' : 'แก้ไขข้อมูลลูกค้า';
       V.ceEmpOptions = this.EMP.map(e => ({ id: e.id, name: e.name, sel: e.id === ce.employeeId }));
-      V.cePriceRows = this.TYPES.map(t => ({
-        key: t.key, label: t.label,
-        placeholder: '฿' + t.price + ' (ราคาปกติ)',
-        value: (ce.customPrices && ce.customPrices[t.key] != null) ? String(ce.customPrices[t.key]) : '',
-        onChange: e => this.setCePrice(t.key, e.target.value),
-      }));
+      V.cePriceRows = this.TYPES.map(t => {
+        const cur = (ce.customPrices && ce.customPrices[t.key] != null) ? String(ce.customPrices[t.key]) : '';
+        // Options = "ราคาปกติ" (no lock) + each real price for this type. A value
+        // saved earlier that isn't a standard price is kept as a "กำหนดเอง" option
+        // so the dropdown never silently drops it.
+        const cand = (t.prices && t.prices.length) ? t.prices : [t.price];
+        const seen = {}; const options = [{ value: '', label: 'ราคาปกติ (฿' + t.price + ')' }];
+        cand.forEach(p => { const v = String(p); if (!seen[v]) { seen[v] = 1; options.push({ value: v, label: '฿' + p }); } });
+        if (cur && !seen[cur]) options.push({ value: cur, label: '฿' + cur + ' (กำหนดเอง)' });
+        return { key: t.key, label: t.label, value: cur, options, onChange: e => this.setCePrice(t.key, e.target.value) };
+      });
     } else { V.custEditOpen = false; }
     V.onCeField = (f) => (e => this.setState(s => ({ custEdit: { ...s.custEdit, [f]: e.target.value } })));
     V.onCeName = V.onCeField('name'); V.onCePhone = V.onCeField('phone'); V.onCeAddr = V.onCeField('address'); V.onCeInvoiceName = V.onCeField('invoiceName');
