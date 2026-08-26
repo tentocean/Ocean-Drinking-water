@@ -2314,7 +2314,8 @@ class Component extends DCLogic {
       const dr = this.computeRange(st.docPeriod);
       // Employees only see documents for their own customers, matching the
       // scoping used by the sales/customers views.
-      const custEmp = {}; st.customers.forEach(c => { custEmp[c.id] = c.employeeId; });
+      const custEmp = {}; const custSearchName = {};
+      st.customers.forEach(c => { custEmp[c.id] = c.employeeId; custSearchName[c.id] = ((c.name || '') + ' ' + (c.invoiceName || '')).toLowerCase(); });
       const mine = effEmp === null ? st.invoices : st.invoices.filter(v => custEmp[v.customerId] === effEmp);
       const inRange = mine.filter(v => v.docDate >= dr.a && v.docDate <= dr.b);
       const payOf = {}; inRange.forEach(v => { payOf[v.id] = this.invoicePayment(v); });
@@ -2324,7 +2325,11 @@ class Component extends DCLogic {
         .filter(v => !st.docOnlyOwing || (v.status === 'issued' && payOf[v.id].state !== 'paid'))
         .filter(v => {
           if (!q) return true;
-          if (v.docNo.toLowerCase().includes(q) || (v.custName || '').toLowerCase().includes(q)) return true;
+          // Match the document number, the name frozen onto the document (cust_name),
+          // AND the customer's current name + invoice_name. The register header shows
+          // the current short name, so searching what you see (e.g. "Urban") must hit
+          // even when the document snapshotted the full legal name instead.
+          if (v.docNo.toLowerCase().includes(q) || (v.custName || '').toLowerCase().includes(q) || (custSearchName[v.customerId] || '').includes(q)) return true;
           // ค้นด้วยยอดเงิน: ตัด comma/ช่องว่างออก แล้วเทียบกับยอดรวมของเอกสาร
           // (พิมพ์ "787" เจอ 787.52 · พิมพ์ "787.52" ก็เจอแบบเป๊ะ)
           const qNum = q.replace(/[,\s]/g, '');
