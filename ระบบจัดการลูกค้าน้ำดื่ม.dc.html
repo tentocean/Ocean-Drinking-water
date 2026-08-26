@@ -2439,7 +2439,11 @@ class Component extends DCLogic {
         const issuedDocs = g.docs.filter(v => v.status === 'issued');
         const total = issuedDocs.reduce((a, v) => a + v.grand, 0);
         const owed = issuedDocs.reduce((a, v) => a + (payOf[v.id] ? payOf[v.id].outstanding : 0), 0);
-        const open = !!st.docOpenGroups[g.cid];
+        // While a search is active, force every matching group open — otherwise a
+        // matched document stays hidden inside a collapsed group and the search
+        // looks like it "found nothing" (it depends on whether that group happened
+        // to be expanded before). Manual toggles still apply when not searching.
+        const open = q !== '' || !!st.docOpenGroups[g.cid];
         return {
           custName: g.custName,
           countLabel: g.docs.length + ' ใบ',
