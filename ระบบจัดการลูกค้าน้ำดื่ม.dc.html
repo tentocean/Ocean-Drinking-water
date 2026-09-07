@@ -709,6 +709,9 @@
                         <sc-if value="{{ s.hasSlip }}" hint-placeholder-val="{{ false }}">
                           <button onClick="{{ s.onViewSlip }}" title="ดูสลิป" style="border:1px solid #dce2e8;background:#fff;cursor:pointer;border-radius:7px;padding:3px 6px;font-size:12px">📎</button>
                         </sc-if>
+                        <sc-if value="{{ s.canUnpay }}" hint-placeholder-val="{{ true }}">
+                          <button onClick="{{ s.onUnpay }}" title="ยกเลิกการรับชำระ — บิลจะกลับเป็นค้าง" style="border:1px solid #e4d6b8;background:#fbf7ee;color:#8a6a12;cursor:pointer;border-radius:7px;padding:3px 7px;font-size:11px;white-space:nowrap">↩︎ ยกเลิกรับชำระ</button>
+                        </sc-if>
                       </span>
                     </sc-if>
                     <sc-if value="{{ s.unpaid }}" hint-placeholder-val="{{ false }}">
@@ -833,6 +836,9 @@
                             <span style="{{ h.badgeStyle }}">{{ h.statusLabel }}</span>
                             <sc-if value="{{ h.hasSlip }}" hint-placeholder-val="{{ false }}">
                               <button onClick="{{ h.onViewSlip }}" title="ดูสลิป" style="border:1px solid #dce2e8;background:#fff;cursor:pointer;border-radius:7px;padding:2px 6px;font-size:12px">📎</button>
+                            </sc-if>
+                            <sc-if value="{{ h.canUnpay }}" hint-placeholder-val="{{ true }}">
+                              <button onClick="{{ h.onUnpay }}" title="ยกเลิกการรับชำระ — บิลจะกลับเป็นค้าง" style="border:1px solid #e4d6b8;background:#fbf7ee;color:#8a6a12;cursor:pointer;border-radius:7px;padding:3px 7px;font-size:11px;white-space:nowrap">↩︎ ยกเลิกรับชำระ</button>
                             </sc-if>
                           </sc-if>
                           <sc-if value="{{ h.unpaid }}" hint-placeholder-val="{{ false }}">
@@ -1986,6 +1992,7 @@ class Component extends DCLogic {
     V.noSales = dayRows.length === 0;
     // ข้อความว่าง: แยกกรณี "ไม่มีขายเลย" กับ "กรองแล้วไม่เจอ"
     V.noSalesMsg = dayRowsAll.length === 0 ? 'ยังไม่มีรายการขายในวันนี้ — เพิ่มรายการด้านบนได้เลย' : 'ไม่พบรายการที่ตรงกับตัวกรอง';
+    const salesRecLocked = this.receiptLockedSaleIds();
     V.salesRows = dayRows.map(s => ({
       customerName: this.custName(s.customerId), employeeName: this.empName(s.employeeId),
       typeLabel: this.typeLabel(s.type), qty: s.qty, priceF: this.fmt(s.price), totalF: this.fmt(s.total),
@@ -1995,6 +2002,8 @@ class Component extends DCLogic {
       badgeBg: s.method === 'transfer' ? '#e6eef7' : '#e7f3ec', badgeFg: s.method === 'transfer' ? '#1c5f96' : '#157a52',
       hasSlip: !!s.slip, onViewSlip: () => this.setState({ slipView: s.slip }),
       onPay: () => this.openPay(s.id),
+      // Undo รับชำระ — hidden once a receipt has settled the bill.
+      canUnpay: s.paid && !salesRecLocked.has(s.id), onUnpay: () => this.unpaySale(s.id),
       onInvoice: () => this.openInvoice(s.id),
       onDelete: () => this.deleteSale(s.id),
     }));
@@ -2109,16 +2118,18 @@ class Component extends DCLogic {
         // history would drop its past revenue out of the summary and P&L.
         deleteHint: salesEver > 0 ? ('ลบไม่ได้ — มีประวัติการขาย ' + salesEver + ' รายการ') : 'ลบลูกค้ารายนี้',
         deleteStyle: 'border:1px solid ' + (salesEver > 0 ? '#e4e8ec;background:#f5f7f9;color:#a6afb8;cursor:not-allowed' : '#f0c9c9;background:#fdf0f0;color:#b23b3b;cursor:pointer') + ';border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600',
-        history: hist.map(s => ({
+        history: (() => { const recLocked = this.receiptLockedSaleIds(); return hist.map(s => ({
           dateF: this.fmtDate(s.date), typeLabel: this.typeLabel(s.type), qty: s.qty, totalF: this.fmt(s.total),
           paid: s.paid, unpaid: !s.paid,
           statusLabel: s.paid ? ('จ่ายแล้ว · ' + (s.method === 'transfer' ? 'โอน' : 'เงินสด') + (s.paidDate !== s.date ? ' ' + this.fmtDate(s.paidDate) : '')) : 'ค้างชำระ',
           badgeStyle: 'font-size:11.5px;padding:3px 9px;border-radius:20px;background:' + (s.method === 'transfer' ? '#e6eef7' : '#e7f3ec') + ';color:' + (s.method === 'transfer' ? '#1c5f96' : '#157a52'),
           hasSlip: !!s.slip, onViewSlip: () => this.setState({ slipView: s.slip }),
           onPay: () => this.openPay(s.id),
+          // Undo รับชำระ — hidden once a receipt has settled the bill.
+          canUnpay: s.paid && !recLocked.has(s.id), onUnpay: () => this.unpaySale(s.id),
           onInvoice: () => this.openInvoice(s.id),
           canEdit: isOwner, onEdit: () => this.openSaleEdit(s.id), onDelete: () => this.deleteSale(s.id),
-        })),
+        })); })(),
       };
     }
     V.search = st.search;
@@ -2991,6 +3002,10 @@ class Component extends DCLogic {
     if (error) { console.error('cancel_invoice failed', error); window.alert('ยกเลิกไม่สำเร็จ: ' + error.message); return; }
     const row = this.mapInvoice(data);
     this.setState(s => ({ invoices: s.invoices.map(v => v.id === row.id ? row : v) }));
+    // Cancelling a ใบเสร็จ reverses the payment on its sales server-side, so
+    // reload — otherwise the paired ใบส่งสินค้า/ใบวางบิล would keep showing
+    // จ่ายครบ locally and the customer's outstanding wouldn't come back.
+    if (row.docType === 'receipt') await this.loadData();
   }
   // Reopen an issued document exactly as it was filed.
   reprintInvoice(v) {
@@ -3080,6 +3095,31 @@ class Component extends DCLogic {
     const { error } = await q;
     if (error) { console.error('confirmPay failed', error); return; }
     this.setState({ payModal: null });
+    await this.loadData();
+  }
+  // Sales already settled by an issued ใบเสร็จรับเงิน (REC). Their paid status
+  // is owned by that receipt, so it must be reversed by cancelling the receipt
+  // — never by un-paying the sale directly (that would desync the two).
+  receiptLockedSaleIds() {
+    const set = new Set();
+    this.state.invoices.forEach(v => {
+      if (v.status === 'issued' && v.docType === 'receipt') (v.saleIds || []).forEach(id => set.add(id));
+    });
+    return set;
+  }
+  // Undo an accidental รับชำระ: put the bill back to an unpaid credit bill.
+  // Blocked for bills a receipt settled (cancel the receipt instead).
+  async unpaySale(id) {
+    const s = this.state.sales.find(x => x.id === id);
+    if (!s || !s.paid) return;
+    if (this.receiptLockedSaleIds().has(id)) {
+      window.alert('บิลนี้ถูกตัดยอดด้วยใบเสร็จรับเงินแล้ว\n\nถ้าต้องการย้อน ให้ไปที่ทะเบียนเอกสาร แล้วกด "ยกเลิก" ที่ใบเสร็จ — ยอดจะกลับเป็นค้างให้เอง');
+      return;
+    }
+    if (!window.confirm('ยกเลิกการรับชำระบิลนี้?\nบิลจะกลับไปเป็น "ค้างชำระ" (เครดิต) และยอดค้างของลูกค้าจะเพิ่มกลับมา')) return;
+    const { error } = await supabase.from('sales')
+      .update({ paid: false, paid_date: null, method: 'credit', slip_url: null }).eq('id', id);
+    if (error) { console.error('unpaySale failed', error); window.alert('ยกเลิกการรับชำระไม่สำเร็จ: ' + error.message); return; }
     await this.loadData();
   }
   async addExpense(effEmp) {
