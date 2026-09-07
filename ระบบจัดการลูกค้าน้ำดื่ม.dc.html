@@ -1358,6 +1358,13 @@
         </select>
         <span style="font-size:12.5px;color:#6b7787;font-weight:600;margin-left:6px">วันที่เอกสาร:</span>
         <input type="date" value="{{ invDocDate }}" onChange="{{ onInvDocDate }}" style="padding:6px 9px;border:1px solid #dce2e8;border-radius:8px;font-size:12.5px" />
+        <sc-if value="{{ invIsReceipt }}" hint-placeholder-val="{{ false }}">
+          <span style="font-size:12.5px;color:#6b7787;font-weight:600;margin-left:6px">รับเงินโดย:</span>
+          <select value="{{ invMethod }}" onChange="{{ onInvMethod }}" style="padding:7px 10px;border:1px solid #dce2e8;border-radius:8px;font-size:12.5px;background:#fff;color:#334;cursor:pointer">
+            <option value="cash">เงินสด</option>
+            <option value="transfer">เงินโอน</option>
+          </select>
+        </sc-if>
         <div style="margin-left:auto;display:flex;gap:10px">
           <button onClick="{{ closeInvoice }}" style="padding:9px 16px;background:#fff;color:#4a5a6a;border:1px solid #e0e4e9;border-radius:9px;font-size:13.5px;font-weight:600;cursor:pointer">ปิด</button>
           <sc-if value="{{ invNotIssued }}" hint-placeholder-val="{{ true }}">
@@ -2319,6 +2326,22 @@ class Component extends DCLogic {
       const mine = effEmp === null ? st.invoices : st.invoices.filter(v => custEmp[v.customerId] === effEmp);
       const inRange = mine.filter(v => v.docDate >= dr.a && v.docDate <= dr.b);
       const payOf = {}; inRange.forEach(v => { payOf[v.id] = this.invoicePayment(v); });
+      // DN + BL issued as a pair cover the SAME sales, so naively summing each
+      // document's outstanding double-counts that debt. Dedupe by the underlying
+      // sale: every unpaid sale is counted once, no matter how many documents
+      // reference it.
+      const dedupOutstanding = docs => {
+        const seen = new Set(); let sum = 0;
+        docs.forEach(v => {
+          const p = payOf[v.id]; if (!p) return;
+          p.unpaidIds.forEach(id => {
+            if (seen.has(id)) return; seen.add(id);
+            const s = st.sales.find(x => x.id === id);
+            if (s) sum += s.total;
+          });
+        });
+        return sum;
+      };
       const q = st.docSearch.trim().toLowerCase();
       const shown = inRange
         .filter(v => st.docTypeFilter === 'all' || v.docType === st.docTypeFilter)
@@ -2358,7 +2381,7 @@ class Component extends DCLogic {
         { label: 'ยอดรวมทั้งสิ้น', valueF: this.fmt(live.reduce((a, v) => a + v.grand, 0)), sub: 'รวม VAT แล้ว' },
       ].map(k => ({ ...k, cardStyle: 'background:#fff;border:1px solid #e5e9ee;border-radius:12px;padding:14px 16px', valColor: 'color:#123a5e' }))
         .concat([{
-          label: 'ยอดค้างชำระ', valueF: this.fmt(owing.reduce((a, v) => a + payOf[v.id].outstanding, 0)),
+          label: 'ยอดค้างชำระ', valueF: this.fmt(dedupOutstanding(owing)),
           sub: owing.length ? ('ค้างอยู่ ' + owing.length + ' ใบ') : 'เก็บครบทุกใบ',
           cardStyle: 'background:#fff;border:1px solid ' + (owing.length ? '#f0d2ce' : '#e5e9ee') + ';border-radius:12px;padding:14px 16px',
           valColor: 'color:' + (owing.length ? '#b4453a' : '#157a52'),
@@ -2443,7 +2466,7 @@ class Component extends DCLogic {
       V.docGroups = Object.values(groupMap).map(g => {
         const issuedDocs = g.docs.filter(v => v.status === 'issued');
         const total = issuedDocs.reduce((a, v) => a + v.grand, 0);
-        const owed = issuedDocs.reduce((a, v) => a + (payOf[v.id] ? payOf[v.id].outstanding : 0), 0);
+        const owed = dedupOutstanding(issuedDocs);
         // While a search is active, force every matching group open — otherwise a
         // matched document stays hidden inside a collapsed group and the search
         // looks like it "found nothing" (it depends on whether that group happened
@@ -2471,9 +2494,22 @@ class Component extends DCLogic {
       const from = o.from, to = o.to;
       const raw = st.sales.filter(s => s.customerId === o.customerId && s.date >= from && s.date <= to).sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
       const cust = st.customers.find(c => c.id === o.customerId) || {};
+      const docType = o.docType || 'taxreceipt';
+      // An already-issued document for this exact customer + type + period is
+      // reused rather than re-numbered (findIssued), so reprinting never burns
+      // a second number. Computed up here because a ใบเสร็จ needs it to pick
+      // which sales it covers.
+      const issued = this.findIssued(o.customerId, docType, from, to);
+      // ใบเสร็จรับเงิน (receipt) is a settlement document, so it covers only the
+      // sales actually being paid off — on a fresh issue that's the still-unpaid
+      // rows in the range; on a reprint those rows are now paid, so re-select by
+      // the sale_ids the receipt froze. Every other document covers the range.
+      const covered = docType !== 'receipt' ? raw
+        : (issued ? raw.filter(s => (issued.saleIds || []).includes(s.id))
+                  : raw.filter(s => !s.paid));
       // consolidate lines by product (type + unit price) — sum qty & amount per product
       const grpMap = {};
-      raw.forEach(s => {
+      covered.forEach(s => {
         const key = s.type + '|' + s.price;
         if (!grpMap[key]) grpMap[key] = { type: s.type, price: s.price, qty: 0, total: 0 };
         grpMap[key].qty += s.qty;
@@ -2481,9 +2517,9 @@ class Component extends DCLogic {
       });
       const groups = Object.values(grpMap);
       const isRange = from !== to;
-      const base = raw.reduce((a, s) => a + s.total, 0);
+      const base = covered.reduce((a, s) => a + s.total, 0);
       // ใบเสร็จรับเงิน/บิลเงินสด (cash) ไม่คิด VAT — ยอดรวม = มูลค่าสินค้า
-      const noVat = (o.docType || 'taxreceipt') === 'cash';
+      const noVat = docType === 'cash';
       const vat = noVat ? 0 : base * 0.07, grand = base + vat;
       const dateLabel = isRange ? (this.fmtDate(from) + ' – ' + this.fmtDate(to)) : this.fmtDate(from);
       V.invoiceOpen = true;
@@ -2492,47 +2528,66 @@ class Component extends DCLogic {
       V.invFrom = from; V.invTo = to;
       V.onInvFrom = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, from: e.target.value, range: 'custom' } }));
       V.onInvTo = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, to: e.target.value, range: 'custom' } }));
-      V.invEmpty = raw.length === 0;
-      const docType = o.docType || 'taxreceipt';
+      V.invEmpty = covered.length === 0;
       const docDate = o.docDate || to;
       const dt = this.docTypeInfo(docType);
       V.invDocType = docType;
       V.invDocDate = docDate;
       V.onInvDocType = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, docType: e.target.value } }));
       V.onInvDocDate = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, docDate: e.target.value } }));
+      // ใบเสร็จรับเงิน records HOW the money came in — that method is written
+      // onto the settled sales when the receipt is issued.
+      V.invIsReceipt = docType === 'receipt';
+      V.invMethod = o.method || 'cash';
+      V.onInvMethod = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, method: e.target.value } }));
       const custPhoneRaw = (cust.phone || '').trim();
       const custTaxRaw = (cust.taxId || '').trim();
       const custNameF = cust.invoiceName || cust.name || '-';
       const items = groups.map((g, i) => ({ no: i + 1, label: this.typeLabel(g.type), qty: g.qty, priceF: this.fmt2(g.price), amountF: this.fmt2(g.total) }));
 
       // The number is only allocated when the user explicitly issues the
-      // document — merely previewing must never consume one.
-      const issued = this.findIssued(o.customerId, docType, from, to);
+      // document — merely previewing must never consume one. (issued was
+      // resolved above, since a ใบเสร็จ uses it to pick its covered sales.)
       V.invIssued = !!issued;
       V.invNotIssued = !issued;
-      const canIssue = !issued && raw.length > 0 && !st.docIssuing;
+      // A ใบเสร็จ with nothing left owing in the range has nothing to settle.
+      const emptyMsg = docType === 'receipt'
+        ? 'ไม่มีรายการค้างชำระในช่วงนี้ — ออกใบเสร็จไม่ได้'
+        : 'ไม่มีรายการขายในช่วงนี้ — ออกเลขไม่ได้';
+      const canIssue = !issued && covered.length > 0 && !st.docIssuing;
       V.invIssueDisabled = !canIssue;
       V.invIssueStyle = 'padding:9px 18px;border:none;border-radius:9px;font-size:13.5px;font-weight:600;'
         + (canIssue ? 'background:#157a52;color:#fff;cursor:pointer' : 'background:#e8ecf0;color:#9aa5b1;cursor:not-allowed');
-      V.invIssueLabel = st.docIssuing ? 'กำลังออกเลข…' : '🔒 ออกเลขเอกสาร';
+      V.invIssueLabel = st.docIssuing ? 'กำลังออกเลข…' : (docType === 'receipt' ? '🔒 ออกใบเสร็จ + ตัดยอด' : '🔒 ออกเลขเอกสาร');
       V.invStatusText = issued
         ? '✓ ออกเลขแล้ว: ' + issued.docNo + ' — เอกสารนี้ถูกบันทึกในทะเบียนแล้ว พิมพ์ซ้ำได้ไม่จำกัด'
-        : (raw.length === 0 ? 'ไม่มีรายการขายในช่วงนี้ — ออกเลขไม่ได้'
-          : 'ยังไม่ได้ออกเลข — ตรวจข้อมูลให้ถูกต้องก่อนกด "ออกเลขเอกสาร" เพราะเลขที่ออกแล้วจะยกเลิกได้อย่างเดียว แก้ไม่ได้');
-      V.invStatusStyle = issued ? 'color:#157a52;font-weight:600' : (raw.length === 0 ? 'color:#b4453a' : 'color:#8a94a0');
-      V.issueDoc = () => this.issueInvoice({
+        : (covered.length === 0 ? emptyMsg
+          : (docType === 'receipt'
+            ? 'ยังไม่ได้ออกเลข — กดออกใบเสร็จแล้วระบบจะตัดยอดใบส่งสินค้า/ใบวางบิลที่คู่กันให้อัตโนมัติ (ยกเลิกได้อย่างเดียว แก้ไม่ได้)'
+            : 'ยังไม่ได้ออกเลข — ตรวจข้อมูลให้ถูกต้องก่อนกด "ออกเลขเอกสาร" เพราะเลขที่ออกแล้วจะยกเลิกได้อย่างเดียว แก้ไม่ได้'));
+      V.invStatusStyle = issued ? 'color:#157a52;font-weight:600' : (covered.length === 0 ? 'color:#b4453a' : 'color:#8a94a0');
+      const issuePayload = {
         docType, docDate, from, to, customerId: o.customerId,
         custName: custNameF, custAddr: cust.address || '', custTaxId: custTaxRaw,
         base, vat, grand, items, employeeId: cust.employeeId,
         // Freeze exactly which sales this document covers — a sale entered
         // later inside the same range must not join an already-printed invoice.
-        saleIds: raw.map(s => s.id),
-      });
-      // ใบเสร็จรับเงินอ้างอิงใบส่งสินค้า/ใบกำกับภาษี (DN) ของลูกค้ารายเดียวกันที่
-      // ช่วงเวลาคาบเกี่ยวกัน — ดึงเลข DN มาโชว์ใต้วันที่โดยอัตโนมัติ
+        saleIds: covered.map(s => s.id),
+      };
+      // ใบเสร็จ: ออกเลข + ตัดยอดในคราวเดียว (issueReceipt); เอกสารอื่นออกเลขเฉย ๆ
+      V.issueDoc = () => docType === 'receipt'
+        ? this.issueReceipt({ ...issuePayload, method: o.method || 'cash' })
+        : this.issueInvoice(issuePayload);
+      // ใบเสร็จรับเงินอ้างอิงใบส่งสินค้า/ใบกำกับภาษี (DN) ของลูกค้ารายเดียวกัน —
+      // จับคู่จาก sale_ids ที่ทับกันจริง (แม่นกว่าการเทียบช่วงเวลา) แล้วดึงเลข DN
+      // มาโชว์ใต้วันที่ให้อัตโนมัติ; DN เก่าที่ไม่มี sale_ids ค่อย fall back ช่วงเวลา
+      const coveredIds = new Set(covered.map(s => s.id));
       const refDocNos = docType === 'receipt'
         ? this.state.invoices.filter(v => v.status === 'issued' && v.docType === 'delivery'
-            && v.customerId === o.customerId && v.from <= to && v.to >= from)
+            && v.customerId === o.customerId
+            && ((v.saleIds && v.saleIds.length)
+                  ? v.saleIds.some(id => coveredIds.has(id))
+                  : (v.from <= to && v.to >= from)))
             .map(v => v.docNo).sort()
         : [];
       V.inv = {
@@ -2882,6 +2937,31 @@ class Component extends DCLogic {
     this.setState({ docIssuing: false });
     if (error) { console.error('issue_invoice failed', error); window.alert('ออกเลขเอกสารไม่สำเร็จ: ' + error.message); return; }
     this.setState(s => ({ invoices: [row, ...s.invoices] }));
+  }
+  // Issue a ใบเสร็จรับเงิน AND settle the sales it covers in one server-side
+  // transaction (issue_receipt). The paid status of the paired ใบส่งสินค้า (DN)
+  // and ใบวางบิล (BL) is derived from these same sales, so cutting them here
+  // clears the outstanding on those documents automatically — no separate
+  // "รับชำระ" step. See supabase/migration-receipt-settle.sql.
+  async issueReceipt(payload) {
+    if (this.state.docIssuing) return;
+    if (!payload.saleIds || !payload.saleIds.length) {
+      window.alert('ไม่มีรายการค้างชำระในช่วงนี้ให้ออกใบเสร็จ'); return;
+    }
+    this.setState({ docIssuing: true });
+    const { data, error } = await supabase.rpc('issue_receipt', {
+      p_doc_date: payload.docDate, p_from: payload.from, p_to: payload.to,
+      p_customer_id: payload.customerId, p_cust_name: payload.custName,
+      p_cust_addr: payload.custAddr, p_cust_tax_id: payload.custTaxId,
+      p_base: payload.base, p_vat: payload.vat, p_grand: payload.grand,
+      p_items: payload.items, p_employee_id: payload.employeeId || null,
+      p_sale_ids: payload.saleIds, p_method: payload.method || 'cash',
+    });
+    this.setState({ docIssuing: false });
+    if (error) { console.error('issue_receipt failed', error); window.alert('ออกใบเสร็จไม่สำเร็จ: ' + error.message); return; }
+    // Reload so the new receipt AND the now-paid sales refresh everywhere:
+    // register badges, customer outstanding, employee remittance, dashboards.
+    await this.loadData();
   }
   // Issue ใบวางบิล (BL) + ใบส่งสินค้า/ใบกำกับภาษี (DN) together for the same
   // customer + period + sales. Each still gets its own correct running number.
