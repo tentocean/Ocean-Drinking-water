@@ -437,7 +437,7 @@
           <div style="display:flex;justify-content:space-between;align-items:center;margin-top:14px;padding:13px 16px;background:{{ det.remitBg }};border-radius:10px">
             <div>
               <div style="font-size:13.5px;font-weight:600;color:{{ det.remitFg }}">เงินนำส่งสุทธิ</div>
-              <div style="font-size:11px;color:{{ det.remitFg }};opacity:.85">สด + โอน + เก็บเก่า − ค่าใช้จ่าย</div>
+              <div style="font-size:11px;color:{{ det.remitFg }};opacity:.85">สด + เก็บเก่า(เงินสด) − ค่าใช้จ่าย</div>
             </div>
             <span class="mono" style="font-size:19px;font-weight:700;color:{{ det.remitFg }}">{{ det.remitF }}</span>
           </div>
@@ -1801,9 +1801,12 @@ class Component extends DCLogic {
     const cash = paidIn.filter(s => s.method !== 'transfer').reduce((x, s) => x + s.total, 0);
     const transfer = paidIn.filter(s => s.method === 'transfer').reduce((x, s) => x + s.total, 0);
     const debt = rs.filter(s => !s.paid).reduce((x, s) => x + s.total, 0);
-    const old = S.filter(s => s.employeeId === empId && s.paidDate && s.paidDate >= a && s.paidDate <= b && s.date < a).reduce((x, s) => x + s.total, 0);
+    const oldRows = S.filter(s => s.employeeId === empId && s.paidDate && s.paidDate >= a && s.paidDate <= b && s.date < a);
+    const old = oldRows.reduce((x, s) => x + s.total, 0);
+    // เก็บเก่าเฉพาะที่พนักงานเก็บเป็นเงินสด (ตัดเงินโอนที่แอดมินกระทบยอดจากธนาคารออก) — ใช้ในเงินนำส่งสุทธิ
+    const oldCash = oldRows.filter(s => s.method !== 'transfer').reduce((x, s) => x + s.total, 0);
     const exp = this.state.expenses.filter(e => e.employeeId === empId && e.date >= a && e.date <= b).reduce((x, e) => x + e.amount, 0);
-    return { sales, cash, transfer, debt, old, exp, profit: cash + transfer + old - exp };
+    return { sales, cash, transfer, debt, old, oldCash, exp, profit: cash + transfer + old - exp };
   }
 
   // ---------- render ----------
@@ -1944,7 +1947,7 @@ class Component extends DCLogic {
         rows: payC.rows.map(r => ({ ...r, valueF: '—', valColor: '#a6afb8' })),
         totalF: '—',
       };
-      const remit = m.profit;
+      const remit = m.cash + m.oldCash - m.exp; // เงินนำส่งสุทธิ = สด + เก็บเก่า(เงินสด) − ค่าใช้จ่าย (ไม่รวมเงินโอน)
       const netProfit = m.sales - m.exp - payC.total;
       const debtColl = st.sales.filter(s => s.employeeId === focusEmp.id && s.paid && s.paidDate && s.paidDate >= R.a && s.paidDate <= R.b && s.paidDate > s.date).sort((x, y) => x.paidDate < y.paidDate ? -1 : 1);
       V.det = {
@@ -1964,7 +1967,8 @@ class Component extends DCLogic {
           { label: '  เงินสด', valueF: this.fmt(m.cash), labelColor: '#6b7787', valColor: '#157a52' },
           { label: '  โอนเงิน', valueF: this.fmt(m.transfer), labelColor: '#6b7787', valColor: '#1c5f96' },
           { label: '  ยอดค้าง (ยังไม่ชำระ)', valueF: this.fmt(m.debt), labelColor: '#6b7787', valColor: '#b45309' },
-          { label: '+ เก็บหนี้ค้าง (งวดก่อน)', valueF: this.fmt(m.old), labelColor: '#4a5a6a', valColor: '#7a52b4' },
+          { label: '+ เก็บหนี้ค้าง–เงินสด (งวดก่อน)', valueF: this.fmt(m.oldCash), labelColor: '#4a5a6a', valColor: '#7a52b4' },
+          ...(m.old - m.oldCash > 0.005 ? [{ label: ' เก็บหนี้ค้าง–โอน (ไม่รวมนำส่ง)', valueF: this.fmt(m.old - m.oldCash), labelColor: '#9aa4b0', valColor: '#9aa4b0' }] : []),
           { label: '− ค่าใช้จ่าย', valueF: this.fmt(m.exp), labelColor: '#4a5a6a', valColor: '#b23b3b' },
         ],
         profitBg: netProfit >= 0 ? '#eaf5ef' : '#fbecec',
