@@ -53,12 +53,14 @@
     .m-salebox{ min-width:0 !important; }
     .m-salehead{ display:none !important; }         /* column header not needed; inputs are labelled */
     .m-saleline{ grid-template-columns:1fr 1fr !important;
-      grid-template-areas:'type type' 'qty price' 'total remove' !important; }
+      grid-template-areas:'type type' 'qty price' 'chips chips' 'total remove' !important; }
     .m-saleline > *:nth-child(1){ grid-area:type; }
     .m-saleline > *:nth-child(2){ grid-area:qty; }
     .m-saleline > *:nth-child(3){ grid-area:price; }
     .m-saleline > *:nth-child(4){ grid-area:total; align-self:center; }
     .m-saleline > *:nth-child(5){ grid-area:remove; justify-self:end; align-self:center; }
+    .m-saleline > .m-qtychips{ grid-area:chips !important; }
+    .m-qtychips button{ height:44px !important; font-size:16px !important; }
     /* iOS Safari zooms the whole page in whenever a focused field is under 16px.
        Forcing 16px on mobile keeps tapping a field from shifting the screen. */
     input, select, textarea{ font-size:16px !important; }
@@ -571,6 +573,12 @@
               <span style="position:absolute;left:11px;top:50%;transform:translateY(-50%);color:#9aa4ae;font-size:14px">🔍</span>
               <input value="{{ custQuery }}" onChange="{{ onCustQuery }}" onFocus="{{ onCustFocus }}" onBlur="{{ onCustBlur }}" placeholder="พิมพ์ชื่อลูกค้า เช่น ครัว, ร้าน, มินิ..." style="width:100%;padding:10px 12px 10px 32px;border:1px solid #dce2e8;border-radius:8px;font-size:13.5px" />
             </div>
+            <sc-if value="{{ hasLastBill }}" hint-placeholder-val="{{ false }}">
+              <div style="{{ lastBillStyle }}">{{ lastBillText }}</div>
+            </sc-if>
+            <sc-if value="{{ custNotPicked }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:12px;margin-top:5px;color:#b23b3b">แตะเลือกชื่อลูกค้าจากรายการที่ขึ้นมา</div>
+            </sc-if>
             <sc-if value="{{ showSuggestions }}" hint-placeholder-val="{{ false }}">
               <div style="position:absolute;top:100%;left:0;right:0;z-index:30;background:#fff;border:1px solid #dce2e8;border-radius:9px;box-shadow:0 10px 28px rgba(16,40,64,.16);margin-top:4px;max-height:236px;overflow-y:auto">
                 <sc-for list="{{ custSuggestions }}" as="g" hint-placeholder-count="4">
@@ -616,6 +624,9 @@
                 </div>
                 <div class="mono" style="padding:9px 10px;background:#f1f4f7;border-radius:8px;font-size:13.5px;font-weight:600;text-align:right;color:#123a5e">{{ l.totalF }}</div>
                 <button onClick="{{ l.onRemove }}" title="ลบแถว" style="{{ l.removeStyle }}">×</button>
+                <div class="m-qtychips" style="grid-column:2 / 5;display:flex;gap:6px">
+                  <sc-for list="{{ l.qtyChips }}" as="q" hint-placeholder-count="5"><button onClick="{{ q.onClick }}" style="{{ q.style }}">{{ q.label }}</button></sc-for>
+                </div>
               </div>
             </sc-for>
             <div style="padding:9px 12px;border-top:1px solid #f2f5f7">
@@ -632,6 +643,9 @@
               <button onClick="{{ setMTransfer }}" style="{{ mTransferStyle }}">โอนเงิน</button>
               <button onClick="{{ setMCredit }}" style="{{ mCreditStyle }}">ค้างชำระ</button>
             </div>
+            <sc-if value="{{ methodAutoNote }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:11.5px;color:#157a52">เลือกให้แล้ว · ลูกค้าจ่ายเงินสด 3 ครั้งล่าสุด (ถ้าไม่ใช่ แตะเปลี่ยนได้)</div>
+            </sc-if>
           </div>
           <sc-if value="{{ methodTransfer }}" hint-placeholder-val="{{ false }}">
             <div style="display:flex;flex-direction:column;gap:5px;font-size:12px;color:#6b7787">สลิปการโอน
@@ -653,7 +667,10 @@
             <div class="mono" style="font-size:22px;font-weight:700;color:#123a5e">{{ saleGrandTotalF }}</div>
           </div>
           <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px">
-            <button onClick="{{ addSale }}" style="{{ addSaleBtnStyle }}">บันทึกรายการ</button>
+            <button onClick="{{ addSale }}" style="{{ addSaleBtnStyle }}">{{ addSaleLabel }}</button>
+            <sc-if value="{{ saleNeedsCust }}" hint-placeholder-val="{{ true }}">
+              <div style="font-size:11.5px;color:#b45309">* เลือกลูกค้าก่อนบันทึก</div>
+            </sc-if>
             <sc-if value="{{ saleNeedsMethod }}" hint-placeholder-val="{{ true }}">
               <div style="font-size:11.5px;color:#b45309">* เลือกวิธีการชำระเงินก่อนบันทึก</div>
             </sc-if>
@@ -1320,6 +1337,18 @@
   </div>
   </sc-if>
 
+  <!-- ============ SALE SAVED (confirmation toast) ============ -->
+  <sc-if value="{{ saleToastOpen }}" hint-placeholder-val="{{ false }}">
+  <div onClick="{{ closeSaleToast }}" style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:80;width:calc(100% - 32px);max-width:440px;background:#123a5e;color:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 12px 32px rgba(0,0,0,.28);cursor:pointer">
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">✓ บันทึกแล้ว · {{ saleToast.custName }}</div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">
+      <span>{{ saleToast.items }}</span>
+      <span style="{{ saleToastMethodStyle }}">{{ saleToastMethod }}</span>
+      <span class="mono" style="margin-left:auto;font-weight:700">{{ saleToast.totalF }}</span>
+    </div>
+  </div>
+  </sc-if>
+
   <!-- ============ EDIT SALE (sales list + customer history) ============ -->
   <sc-if value="{{ saleEditOpen }}" hint-placeholder-val="{{ false }}">
   <div onClick="{{ cancelSaleEdit }}" style="position:fixed;inset:0;z-index:66;background:rgba(16,30,45,.45);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">
@@ -1652,7 +1681,8 @@ class Component extends DCLogic {
     salesTypeFilter: 'all', salesStatusFilter: 'all',
     custRange: 'all', custFrom: '', custTo: '',
     docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false, docOnlyOwing: false, docOpenGroups: {},
-    saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] },
+    saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', methodAuto: false, slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] },
+    saleSaving: false, saleToast: null,
     expForm: { category: 'ค่าน้ำมัน', amount: '', note: '' },
     facForm: { cat: 'cap', variant: '', qty: '', unitPrice: '', total: '', note: '' },
   };
@@ -2105,6 +2135,12 @@ class Component extends DCLogic {
           style: 'border:1px solid ' + (String(p) === String(l.price) ? '#1c5f96' : '#d3dbe2') + ';background:' + (String(p) === String(l.price) ? '#eaf2f9' : '#fff') + ';color:' + (String(p) === String(l.price) ? '#1c5f96' : '#6b7787') + ';border-radius:6px;padding:2px 7px;font-size:11px;font-weight:600;cursor:pointer;line-height:1.4',
           onClick: () => this.updateLine(i, 'price', String(p)),
         })),
+        // 1–5 covers ~85% of past 18.9L lines — one tap instead of opening the keyboard.
+        qtyChips: [1, 2, 3, 4, 5].map(n => ({
+          label: String(n),
+          style: 'flex:1;min-width:0;height:36px;border-radius:8px;font-size:14px;font-weight:600;cursor:pointer;border:1px solid ' + (String(n) === String(l.qty) ? '#1c5f96;background:#1c5f96;color:#fff' : '#d3dbe2;background:#fff;color:#4a5a6a'),
+          onClick: () => this.updateLine(i, 'qty', String(n)),
+        })),
         onType: e => this.setLineType(i, e.target.value),
         onQty: e => this.updateLine(i, 'qty', e.target.value.replace(/[^0-9.]/g, '')),
         onPrice: e => this.updateLine(i, 'price', e.target.value.replace(/[^0-9.]/g, '')),
@@ -2121,28 +2157,48 @@ class Component extends DCLogic {
       name: c.name, phone: c.phone, employeeName: this.empName(c.employeeId), onPick: () => this.pickCust(c.id, c.name),
     }));
     V.showSuggestions = st.suggestOpen && V.custSuggestions.length > 0;
-    V.onCustQuery = e => this.setState(s => ({ suggestOpen: true, saleForm: { ...s.saleForm, customerQuery: e.target.value, customerId: '' } }));
+    // The customer's previous bill under the search box, so an unusual entry stands out.
+    const lastBill = sf.customerId ? this.custBills(sf.customerId).pop() : null;
+    V.hasLastBill = !!lastBill;
+    V.lastBillText = lastBill ? (lastBill.date === st.selectedDate ? 'วันนี้บันทึกแล้ว ' + (lastBill.createdAt ? this.fmtTime(lastBill.createdAt) : '') : 'ครั้งก่อน ' + this.fmtDate(lastBill.date))
+      + ' · ' + this.billItems(lastBill.rows) + ' · ' + this.methodLabel(lastBill.method) + ' ' + this.fmt(lastBill.total) : '';
+    V.lastBillStyle = 'font-size:12px;margin-top:5px;' + (lastBill && lastBill.date === st.selectedDate ? 'color:#b45309;font-weight:600' : 'color:#6b7787');
+    V.custNotPicked = !sf.customerId && !!(sf.customerQuery || '').trim() && !st.suggestOpen;
+    // Typing clears the picked customer, and with it a method that was only guessed for them.
+    V.onCustQuery = e => this.setState(s => ({ suggestOpen: true, saleForm: { ...s.saleForm, customerQuery: e.target.value, customerId: '',
+      ...(s.saleForm.methodAuto ? { method: '', methodAuto: false } : {}) } }));
     V.onCustFocus = () => this.setState({ suggestOpen: true });
     V.onCustBlur = () => { setTimeout(() => this.setState({ suggestOpen: false }), 160); };
-    V.onSaleEmp = e => { const id = e.target.value; this.setState(s => ({ saleForm: { ...s.saleForm, employeeId: id, customerId: '', customerQuery: '' } })); };
+    V.onSaleEmp = e => { const id = e.target.value; this.setState(s => ({ saleForm: { ...s.saleForm, employeeId: id, customerId: '', customerQuery: '',
+      ...(s.saleForm.methodAuto ? { method: '', methodAuto: false } : {}) } })); };
     // payment method
     V.methodTransfer = sf.method === 'transfer';
     V.mCashStyle = seg(sf.method === 'cash', '#157a52');
     V.mTransferStyle = seg(sf.method === 'transfer', '#1c5f96');
     V.mCreditStyle = seg(sf.method === 'credit', '#b45309');
-    V.setMCash = () => this.up('saleForm', 'method', 'cash');
-    V.setMTransfer = () => this.up('saleForm', 'method', 'transfer');
-    V.setMCredit = () => this.up('saleForm', 'method', 'credit');
+    const setMethod = m => this.setState(s => ({ saleForm: { ...s.saleForm, method: m, methodAuto: false } }));
+    V.setMCash = () => setMethod('cash');
+    V.setMTransfer = () => setMethod('transfer');
+    V.setMCredit = () => setMethod('credit');
+    V.methodAutoNote = sf.methodAuto && sf.method === 'cash';
     V.hasSaleSlip = !!sf.slip; V.noSaleSlip = !sf.slip;
     V.saleSlipImg = sf.slip ? React.createElement('img', { src: sf.slip, onClick: () => this.setState({ slipView: sf.slip }), style: { width: 38, height: 38, objectFit: 'cover', borderRadius: 7, border: '1px solid #dce2e8', cursor: 'pointer' } }) : null;
     V.onSaleSlip = e => this.readSlip(e, 'sale');
     V.clearSaleSlip = () => this.up('saleForm', 'slip', null);
-    V.saleCanSave = !!sf.method && !!sf.customerId;
+    V.saleCanSave = !!sf.method && !!sf.customerId && !st.saleSaving;
     V.saleNeedsMethod = !sf.method;
+    V.saleNeedsCust = !sf.customerId;
+    V.addSaleLabel = st.saleSaving ? 'กำลังบันทึก…' : 'บันทึกรายการ';
     V.addSaleBtnStyle = 'padding:12px 24px;border:none;border-radius:9px;font-size:14px;font-weight:600;' + (V.saleCanSave
       ? 'background:#1c5f96;color:#fff;cursor:pointer'
       : 'background:#d7dee4;color:#9aa6b1;cursor:not-allowed');
     V.addSale = () => this.addSale();
+    const toast = st.saleToast;
+    V.saleToastOpen = !!toast;
+    V.saleToast = toast || {};
+    V.saleToastMethodStyle = toast ? 'padding:2px 9px;border-radius:20px;font-weight:700;white-space:nowrap;background:' + (toast.method === 'cash' ? '#157a52' : toast.method === 'transfer' ? '#1c5f96' : '#b45309') : '';
+    V.saleToastMethod = toast ? this.methodLabel(toast.method) : '';
+    V.closeSaleToast = () => this.setState({ saleToast: null });
 
     // ---- CUSTOMERS VIEW ----
     const q = st.search.trim().toLowerCase();
@@ -2953,12 +3009,33 @@ class Component extends DCLogic {
   removeLine(i) { this.setState(s => ({ saleForm: { ...s.saleForm, lines: s.saleForm.lines.length > 1 ? s.saleForm.lines.filter((_, idx) => idx !== i) : s.saleForm.lines } })); }
   // Picking a customer applies that customer's locked prices to any line whose
   // type has one set (lines without a lock keep whatever price was typed).
+  // It also pre-selects เงินสด for a customer whose last 3 bills were all cash
+  // (right ~97% of the time on past data). Only cash is ever guessed: ค้างชำระ
+  // and โอน customers switch too often. A method the user tapped is never overridden.
   pickCust(id, name) {
+    const recent = this.custBills(id).slice(-3);
+    const guessCash = recent.length === 3 && recent.every(b => b.method === 'cash');
     this.setState(s => {
       const lines = s.saleForm.lines.map(l => { const locked = this.custPrice(id, l.type); return locked != null ? { ...l, price: locked } : l; });
-      return { suggestOpen: false, saleForm: { ...s.saleForm, customerId: id, customerQuery: name, lines } };
+      const manual = s.saleForm.method && !s.saleForm.methodAuto;
+      const method = manual ? s.saleForm.method : (guessCash ? 'cash' : '');
+      return { suggestOpen: false, saleForm: { ...s.saleForm, customerId: id, customerQuery: name, lines, method, methodAuto: !manual && guessCash } };
     });
   }
+  // A customer's bills (one per group_id), oldest first, each with how it was
+  // paid when it was keyed — a debt collected on a later day counts as ค้างชำระ,
+  // because that's what was chosen on the form at the time.
+  custBills(id) {
+    const g = {};
+    this.state.sales.forEach(s => { if (s.customerId === id) { const k = s.groupId || s.id; (g[k] = g[k] || []).push(s); } });
+    return Object.values(g).map(rows => {
+      const s = rows[0];
+      return { rows, date: s.date, createdAt: s.createdAt || '', total: rows.reduce((a, r) => a + r.total, 0),
+        method: s.paid && s.paidDate === s.date ? (s.method === 'transfer' ? 'transfer' : 'cash') : 'credit' };
+    }).sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : (a.createdAt < b.createdAt ? -1 : a.createdAt > b.createdAt ? 1 : 0));
+  }
+  billItems(rows) { return rows.map(r => { const t = this.TYPES.find(x => x.key === r.type); return (t ? t.short : r.type) + ' ×' + r.qty; }).join(', '); }
+  methodLabel(m) { return m === 'transfer' ? 'โอนเงิน' : m === 'credit' ? 'ค้างชำระ' : 'เงินสด'; }
   readSlip(e, target) {
     const f = e.target.files && e.target.files[0]; if (!f) return;
     const r = new FileReader();
@@ -2968,21 +3045,51 @@ class Component extends DCLogic {
     };
     r.readAsDataURL(f); e.target.value = '';
   }
+  // saleSaving stays on until the list has reloaded, so a second tap can't
+  // insert the bill twice (past data had bills keyed twice within 2 minutes —
+  // a save used to take ~9s with no feedback) and the same-day check below
+  // always sees the bill just saved.
   async addSale() {
+    // this.addingSale flips synchronously; state.saleSaving only drives the button.
+    if (this.addingSale) return;
     const sf = this.state.saleForm;
     if (!sf.customerId) return;
     if (!sf.method) return;
     const empId = this.state.role === 'owner' ? sf.employeeId : this.state.currentEmployeeId;
     const lines = sf.lines.map(l => ({ type: l.type, qty: parseFloat(l.qty) || 0, price: parseFloat(l.price) || 0 })).filter(l => l.qty > 0);
-    if (!lines.length) return;
-    const gid = 'g' + Date.now(); const paid = sf.method !== 'credit'; const date = this.state.selectedDate;
-    let slipPath = null;
-    if (sf.method === 'transfer' && sf.slip) slipPath = await this.uploadSlip(sf.slip, empId, 'sale-' + gid);
-    const rows = lines.map(l => ({ group_id: gid, sale_date: date, employee_id: empId, customer_id: sf.customerId, type: l.type, qty: l.qty, price: l.price, total: l.qty * l.price, method: sf.method, paid, paid_date: paid ? date : null, slip_url: sf.method === 'transfer' ? slipPath : null }));
-    const { error } = await supabase.from('sales').insert(rows);
-    if (error) { console.error('addSale failed', error); return; }
-    this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: '', customerQuery: '', method: '', slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] } }));
-    await this.loadData();
+    if (!lines.length) { window.alert('กรุณาใส่จำนวนอย่างน้อย 1 รายการ'); return; }
+    const date = this.state.selectedDate;
+    const custName = this.custName(sf.customerId);
+    const sameDay = this.custBills(sf.customerId).filter(b => b.date === date);
+    if (sameDay.length) {
+      const list = sameDay.map(b => '• ' + this.billItems(b.rows) + (b.createdAt ? ' (' + this.fmtTime(b.createdAt) + ')' : '')).join('\n');
+      if (!window.confirm('วันนี้บันทึกให้ "' + custName + '" ไปแล้ว ' + sameDay.length + ' บิล\n' + list + '\n\nจะบันทึกเพิ่มอีกบิลใช่ไหม?')) return;
+    }
+    this.addingSale = true;
+    this.setState({ saleSaving: true });
+    try {
+      const gid = 'g' + Date.now(); const paid = sf.method !== 'credit';
+      let slipPath = null;
+      if (sf.method === 'transfer' && sf.slip) slipPath = await this.uploadSlip(sf.slip, empId, 'sale-' + gid);
+      const rows = lines.map(l => ({ group_id: gid, sale_date: date, employee_id: empId, customer_id: sf.customerId, type: l.type, qty: l.qty, price: l.price, total: l.qty * l.price, method: sf.method, paid, paid_date: paid ? date : null, slip_url: sf.method === 'transfer' ? slipPath : null }));
+      const { error } = await supabase.from('sales').insert(rows);
+      if (error) {
+        console.error('addSale failed', error);
+        window.alert('บันทึกไม่สำเร็จ — ข้อมูลที่กรอกยังอยู่ ตรวจสอบอินเทอร์เน็ตแล้วกดบันทึกอีกครั้ง\n(' + error.message + ')');
+        return;
+      }
+      this.showSaleToast({ custName, items: this.billItems(lines), method: sf.method, totalF: this.fmt(rows.reduce((a, r) => a + r.total, 0)) });
+      this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: '', customerQuery: '', method: '', methodAuto: false, slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] } }));
+      await this.loadData();
+    } finally {
+      this.addingSale = false;
+      this.setState({ saleSaving: false });
+    }
+  }
+  showSaleToast(t) {
+    clearTimeout(this.saleToastTimer);
+    this.setState({ saleToast: t });
+    this.saleToastTimer = setTimeout(() => this.setState({ saleToast: null }), 5000);
   }
   // Open the edit modal for one sale row (owner-only in the UI). Blocks editing
   // a sale frozen onto an issued document — same rule as deleteSale, because the
