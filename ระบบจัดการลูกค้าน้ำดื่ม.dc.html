@@ -732,6 +732,9 @@
                       <button onClick="{{ s.onPay }}" style="font-size:11.5px;padding:5px 12px;border-radius:20px;background:#fdf1e3;color:#b45309;border:1px solid #f2d9b8;cursor:pointer;white-space:nowrap">ค้าง • รับชำระ</button>
                     </sc-if>
                     <button onClick="{{ s.onInvoice }}" title="ออกใบกำกับภาษี" style="margin-left:6px;border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:4px 9px;font-size:11.5px;white-space:nowrap">🧾 ใบกำกับภาษี</button>
+                    <sc-if value="{{ s.canEdit }}" hint-placeholder-val="{{ true }}">
+                      <button onClick="{{ s.onEdit }}" title="แก้ไขรายการ" style="margin-left:6px;border:1px solid #dce2e8;background:#fff;color:#4a5a6a;cursor:pointer;border-radius:7px;padding:4px 9px;font-size:11.5px;white-space:nowrap">✏️ แก้ไข</button>
+                    </sc-if>
                     <button onClick="{{ s.onDelete }}" title="ลบรายการ" style="margin-left:6px;border:1px solid #f0d3d3;background:#fdf4f4;color:#b23b3b;cursor:pointer;border-radius:7px;padding:4px 9px;font-size:11.5px;white-space:nowrap">🗑 ลบ</button>
                   </td>
                 </tr>
@@ -1317,13 +1320,43 @@
   </div>
   </sc-if>
 
-  <!-- ============ EDIT SALE (customer history) ============ -->
+  <!-- ============ EDIT SALE (sales list + customer history) ============ -->
   <sc-if value="{{ saleEditOpen }}" hint-placeholder-val="{{ false }}">
-  <div onClick="{{ cancelSaleEdit }}" style="position:fixed;inset:0;z-index:66;background:rgba(16,30,45,.45);display:flex;align-items:center;justify-content:center;padding:20px;overflow:auto">
-    <div onClick="{{ stop }}" style="background:#fff;border-radius:14px;padding:22px 24px;width:100%;max-width:380px;box-shadow:0 24px 64px rgba(0,0,0,.32)">
+  <div onClick="{{ cancelSaleEdit }}" style="position:fixed;inset:0;z-index:66;background:rgba(16,30,45,.45);display:flex;align-items:flex-start;justify-content:center;padding:20px;overflow:auto">
+    <div onClick="{{ stop }}" style="background:#fff;border-radius:14px;padding:22px 24px;width:100%;max-width:420px;margin:auto 0;box-shadow:0 24px 64px rgba(0,0,0,.32)">
       <div style="font-size:16px;font-weight:700;color:#123a5e;margin-bottom:16px">แก้ไขรายการขาย</div>
+      <sc-if value="{{ seHasGroup }}" hint-placeholder-val="{{ false }}">
+        <div style="font-size:12px;color:#6b7787;margin-bottom:12px">บิลนี้มี {{ seGroupSize }} รายการ — วันที่ / ลูกค้า / พนักงาน / การชำระ ใช้กับ
+          <div style="display:flex;background:#eef2f5;border-radius:8px;padding:3px;gap:3px;margin-top:5px">
+            <button onClick="{{ setSeWholeBill }}" style="{{ seWholeBillStyle }};flex:1">ทั้งบิล</button>
+            <button onClick="{{ setSeThisRow }}" style="{{ seThisRowStyle }};flex:1">เฉพาะรายการนี้</button>
+          </div>
+        </div>
+      </sc-if>
       <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">วันที่ส่ง
         <input type="date" value="{{ se.date }}" onChange="{{ onSeDate }}" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px" />
+      </label>
+      <div style="margin-bottom:12px;position:relative">
+        <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:5px">ลูกค้า <span style="color:#a6afb8">(พิมพ์เพื่อค้นหา)</span></label>
+        <input value="{{ se.custQuery }}" onChange="{{ onSeCustQuery }}" onFocus="{{ onSeCustFocus }}" onBlur="{{ onSeCustBlur }}" placeholder="พิมพ์ชื่อหรือเบอร์โทรลูกค้า" style="width:100%;box-sizing:border-box;padding:10px 12px;border:1px solid {{ seCustBorder }};border-radius:9px;font-size:14px" />
+        <sc-if value="{{ seNoCust }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:11.5px;color:#b23b3b;margin-top:4px">เลือกลูกค้าจากรายการที่ขึ้นมา</div>
+        </sc-if>
+        <sc-if value="{{ seShowSuggest }}" hint-placeholder-val="{{ false }}">
+          <div style="position:absolute;top:100%;left:0;right:0;z-index:30;background:#fff;border:1px solid #dce2e8;border-radius:9px;box-shadow:0 10px 28px rgba(16,40,64,.16);margin-top:4px;max-height:236px;overflow-y:auto">
+            <sc-for list="{{ seCustSuggestions }}" as="g" hint-placeholder-count="4">
+              <div onMouseDown="{{ g.onPick }}" style="padding:9px 12px;cursor:pointer;border-bottom:1px solid #f2f5f7">
+                <div style="font-size:13.5px;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ g.name }}</div>
+                <div style="font-size:11.5px;color:#8a94a0">{{ g.employeeName }} · {{ g.phone }}</div>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+      </div>
+      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">พนักงาน
+        <select value="{{ se.employeeId }}" onChange="{{ onSeEmp }}" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px;background:#fff">
+          <sc-for list="{{ employees }}" as="e" hint-placeholder-count="4"><option value="{{ e.id }}">{{ e.name }}</option></sc-for>
+        </select>
       </label>
       <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:12px">ประเภทสินค้า
         <select value="{{ se.type }}" onChange="{{ onSeType }}" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px;background:#fff">
@@ -1337,6 +1370,16 @@
         <label style="flex:1;font-size:12px;color:#6b7787">ราคา/หน่วย
           <input value="{{ se.price }}" onChange="{{ onSePrice }}" inputmode="numeric" style="width:100%;box-sizing:border-box;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px;text-align:right" />
         </label>
+      </div>
+      <div style="font-size:12px;color:#6b7787;margin-bottom:14px">การชำระเงิน
+        <div style="display:flex;background:#eef2f5;border-radius:8px;padding:3px;gap:3px;margin-top:5px">
+          <button onClick="{{ setSeCash }}" style="{{ seCashStyle }};flex:1">เงินสด</button>
+          <button onClick="{{ setSeTransfer }}" style="{{ seTransferStyle }};flex:1">โอนเงิน</button>
+          <button onClick="{{ setSeCredit }}" style="{{ seCreditStyle }};flex:1">ค้างชำระ</button>
+        </div>
+        <sc-if value="{{ seMethodNote }}" hint-placeholder-val="{{ false }}">
+          <div style="font-size:11.5px;color:#8a6a12;margin-top:5px">{{ seMethodNote }}</div>
+        </sc-if>
       </div>
       <div style="display:flex;justify-content:space-between;align-items:center;background:#f1f4f7;border-radius:9px;padding:10px 14px;margin-bottom:16px">
         <span style="font-size:13px;color:#6b7787">ยอดรวม</span>
@@ -2034,6 +2077,7 @@ class Component extends DCLogic {
       // Undo รับชำระ — hidden once a receipt has settled the bill.
       canUnpay: s.paid && !salesRecLocked.has(s.id), onUnpay: () => this.unpaySale(s.id),
       onInvoice: () => this.openInvoice(s.id),
+      canEdit: isOwner, onEdit: () => this.openSaleEdit(s.id),
       onDelete: () => this.deleteSale(s.id),
     }));
 
@@ -2345,13 +2389,41 @@ class Component extends DCLogic {
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
     V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id, customPrices: {}, priceLockRows: [] } });
 
-    // sale edit (customer history) — owner only, guarded against issued documents
+    // sale edit (sales list + customer history) — owner only, guarded against issued documents
+    const upSe = patch => this.setState(s => ({ saleEdit: { ...s.saleEdit, ...patch } }));
     if (st.saleEdit) {
       const se = st.saleEdit;
       V.saleEditOpen = true; V.se = se;
       V.seTypeOptions = this.TYPES.map(t => ({ value: t.key, label: t.label }));
       V.seTotalF = this.fmt((parseFloat(se.qty) || 0) * (parseFloat(se.price) || 0));
+      V.seHasGroup = se.groupSize > 1; V.seGroupSize = se.groupSize;
+      V.seWholeBillStyle = seg(se.applyGroup); V.seThisRowStyle = seg(!se.applyGroup);
+      const sq = se.custQuery.trim().toLowerCase();
+      V.seCustSuggestions = st.customers.filter(c => !sq || c.name.toLowerCase().includes(sq) || c.phone.includes(sq)).slice(0, 7).map(c => ({
+        name: c.name, phone: c.phone, employeeName: this.empName(c.employeeId),
+        // A customer belongs to one route, so picking one also moves the sale to that route's employee.
+        onPick: () => upSe({ customerId: c.id, custQuery: c.name, custOpen: false, employeeId: c.employeeId }),
+      }));
+      V.seShowSuggest = se.custOpen && V.seCustSuggestions.length > 0;
+      V.seNoCust = !se.customerId && !se.custOpen;
+      V.seCustBorder = V.seNoCust ? '#e3a5a5' : '#dce2e8';
+      V.seCashStyle = seg(se.method === 'cash', '#157a52');
+      V.seTransferStyle = seg(se.method === 'transfer', '#1c5f96');
+      V.seCreditStyle = seg(se.method === 'credit', '#b45309');
+      V.seMethodNote = se.method === se.origMethod ? ''
+        : se.method === 'credit' ? 'บิลจะกลับเป็นค้างชำระ และยอดค้างของลูกค้าจะเพิ่มขึ้น'
+        : se.origMethod === 'credit' ? 'บิลจะถูกบันทึกว่าจ่ายแล้วในวันที่ส่ง'
+        : se.origMethod === 'transfer' ? 'สลิปโอนที่แนบไว้จะถูกถอดออกจากบิล' : '';
     } else { V.saleEditOpen = false; }
+    V.setSeWholeBill = () => upSe({ applyGroup: true });
+    V.setSeThisRow = () => upSe({ applyGroup: false });
+    V.onSeCustQuery = e => upSe({ custQuery: e.target.value, customerId: '', custOpen: true });
+    V.onSeCustFocus = () => upSe({ custOpen: true });
+    V.onSeCustBlur = () => { setTimeout(() => { if (this.state.saleEdit) upSe({ custOpen: false }); }, 160); };
+    V.onSeEmp = e => upSe({ employeeId: e.target.value });
+    V.setSeCash = () => upSe({ method: 'cash' });
+    V.setSeTransfer = () => upSe({ method: 'transfer' });
+    V.setSeCredit = () => upSe({ method: 'credit' });
     V.onSeDate = e => this.setState(s => ({ saleEdit: { ...s.saleEdit, date: e.target.value } }));
     V.onSeType = e => this.setState(s => ({ saleEdit: { ...s.saleEdit, type: e.target.value } }));
     V.onSeQty = e => this.setState(s => ({ saleEdit: { ...s.saleEdit, qty: e.target.value.replace(/[^0-9.]/g, '') } }));
@@ -2923,18 +2995,45 @@ class Component extends DCLogic {
       window.alert('แก้ไขไม่ได้ — รายการขายนี้ถูกใช้ในเอกสาร ' + doc.docNo + ' ที่ออกเลขแล้ว\n\nถ้าต้องแก้ ให้ไปที่ "ทะเบียนเอกสาร" กดยกเลิก ' + doc.docNo + ' ก่อน แล้วค่อยแก้รายการนี้ และออกเอกสารใหม่');
       return;
     }
-    this.setState({ saleEdit: { id: s.id, date: s.date, type: s.type, qty: String(s.qty), price: String(s.price) } });
+    const method = s.paid ? (s.method === 'transfer' ? 'transfer' : 'cash') : 'credit';
+    const group = s.groupId ? this.state.sales.filter(x => x.groupId === s.groupId) : [s];
+    // Start on "this row only" when another line of the bill is already on a document, since a whole-bill edit would be refused.
+    const groupLocked = group.some(g => this.state.invoices.some(v => v.status === 'issued' && (v.saleIds || []).includes(g.id)));
+    this.setState({ saleEdit: { id: s.id, date: s.date, type: s.type, qty: String(s.qty), price: String(s.price),
+      customerId: s.customerId, custQuery: this.custName(s.customerId), custOpen: false, employeeId: s.employeeId,
+      method, origMethod: method, groupSize: group.length, applyGroup: group.length > 1 && !groupLocked } });
   }
+  // Type/qty/price change only the row that was opened. Date, customer,
+  // employee and payment describe the whole bill (addSale writes them to every
+  // line of the group), so by default they're applied to all of its lines.
   async saveSaleEdit() {
     const se = this.state.saleEdit; if (!se) return;
-    // Re-check the guard in case a document was issued after the modal opened.
-    const doc = this.state.invoices.find(v => v.status === 'issued' && (v.saleIds || []).includes(se.id));
-    if (doc) { window.alert('แก้ไขไม่ได้ — รายการนี้ถูกใช้ในเอกสาร ' + doc.docNo + ' แล้ว (ยกเลิกเอกสารก่อน)'); this.setState({ saleEdit: null }); return; }
+    const s = this.state.sales.find(x => x.id === se.id);
+    if (!s) { this.setState({ saleEdit: null }); return; }
+    const targets = se.applyGroup && s.groupId ? this.state.sales.filter(x => x.groupId === s.groupId) : [s];
+    // Re-check the guard for every row touched, in case a document was issued after the modal opened.
+    const doc = this.state.invoices.find(v => v.status === 'issued' && targets.some(t => (v.saleIds || []).includes(t.id)));
+    if (doc) { window.alert('แก้ไขไม่ได้ — บิลนี้มีรายการที่ถูกใช้ในเอกสาร ' + doc.docNo + ' แล้ว (ยกเลิกเอกสารก่อน หรือเลือก "เฉพาะรายการนี้")'); return; }
     const qty = parseFloat(se.qty) || 0, price = parseFloat(se.price) || 0;
     if (qty <= 0) { window.alert('จำนวนต้องมากกว่า 0'); return; }
     if (!se.date) { window.alert('กรุณาระบุวันที่'); return; }
-    const { error } = await supabase.from('sales').update({ sale_date: se.date, type: se.type, qty, price, total: qty * price }).eq('id', se.id);
-    if (error) { console.error('saveSaleEdit failed', error); window.alert('บันทึกไม่สำเร็จ: ' + error.message); return; }
+    if (!se.customerId) { window.alert('กรุณาเลือกลูกค้าจากรายการ'); return; }
+    const methodChanged = se.method !== se.origMethod;
+    const updateFor = t => {
+      const u = { sale_date: se.date, customer_id: se.customerId, employee_id: se.employeeId };
+      const paid = methodChanged ? se.method !== 'credit' : t.paid;
+      if (methodChanged) { u.paid = paid; u.method = se.method; if (se.method !== 'transfer') u.slip_url = null; }
+      // A bill paid on the spot keeps its paid date equal to the sale date, so
+      // moving the date doesn't turn it into a "debt collected" entry in the
+      // remittance; a debt collected on a later day keeps its own date.
+      const pd = t.paid ? t.paidDate : null;
+      u.paid_date = !paid ? null : (!pd || pd === t.date || pd < se.date) ? se.date : pd;
+      if (t.id === s.id) Object.assign(u, { type: se.type, qty, price, total: qty * price });
+      return u;
+    };
+    const results = await Promise.all(targets.map(t => supabase.from('sales').update(updateFor(t)).eq('id', t.id)));
+    const failed = results.find(r => r.error);
+    if (failed) { console.error('saveSaleEdit failed', failed.error); window.alert('บันทึกไม่สำเร็จ: ' + failed.error.message); await this.loadData(); return; }
     this.setState({ saleEdit: null });
     await this.loadData();
   }
