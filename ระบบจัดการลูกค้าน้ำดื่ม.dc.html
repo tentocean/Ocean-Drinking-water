@@ -586,6 +586,12 @@
                 </div>
               </div>
             </sc-if>
+            <sc-if value="{{ custOwes }}" hint-placeholder-val="{{ false }}">
+              <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:8px;background:#fdf1e3;border:1px solid #f2d9b8;border-radius:9px;padding:8px 10px">
+                <span style="flex:1;min-width:150px;font-size:12.5px;color:#8a5a12;font-weight:600">⚠ {{ custOwesText }}</span>
+                <button onClick="{{ payCustDebt }}" style="min-height:38px;border:1px solid #157a52;background:#157a52;color:#fff;border-radius:8px;padding:6px 12px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">💵 รับชำระยอดค้าง</button>
+              </div>
+            </sc-if>
             <sc-if value="{{ custNotPicked }}" hint-placeholder-val="{{ false }}">
               <div style="font-size:12px;margin-top:5px;color:#b23b3b">แตะเลือกชื่อลูกค้าจากรายการที่ขึ้นมา</div>
             </sc-if>
@@ -1247,13 +1253,20 @@
       <div style="font-size:12.5px;color:#8a94a0;margin:4px 0 16px">{{ pay.customerName }} · {{ pay.typeLabel }} · <span class="mono" style="color:#123a5e;font-weight:600">{{ pay.amountF }}</span></div>
 
       <sc-if value="{{ pay.bulk }}" hint-placeholder-val="{{ false }}">
-        <div style="font-size:12px;color:#6b7787;margin-bottom:6px">ช่วงวันที่บิลค้างที่จะรับชำระ</div>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px">
-          <input type="date" value="{{ pay.from }}" onChange="{{ onPayFrom }}" style="flex:1;min-width:0;padding:9px 10px;border:1px solid #dce2e8;border-radius:9px;font-size:13.5px" />
-          <span style="font-size:12px;color:#8a94a0">ถึง</span>
-          <input type="date" value="{{ pay.to }}" onChange="{{ onPayTo }}" style="flex:1;min-width:0;padding:9px 10px;border:1px solid #dce2e8;border-radius:9px;font-size:13.5px" />
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+          <span style="font-size:12px;color:#6b7787">ติ๊กเฉพาะบิลที่ลูกค้าจ่าย</span>
+          <button onClick="{{ togglePayAll }}" style="border:none;background:none;color:#1c5f96;font-size:12px;font-weight:600;cursor:pointer;padding:2px 0">{{ pay.toggleAllLabel }}</button>
         </div>
-        <div style="background:#fdf1e3;border:1px solid #f2d9b8;color:#8a5a12;border-radius:9px;padding:10px 12px;font-size:12px;line-height:1.5;margin-bottom:14px">รับชำระ <b>{{ pay.bulkCount }}</b> รายการที่ค้างในช่วงนี้ พร้อมกันในครั้งเดียว</div>
+        <div style="border:1px solid #e5e9ee;border-radius:10px;overflow:hidden;max-height:260px;overflow-y:auto;margin-bottom:14px">
+          <sc-for list="{{ pay.bills }}" as="b" hint-placeholder-count="3">
+            <div onClick="{{ b.onToggle }}" style="{{ b.rowStyle }}">
+              <span style="font-size:20px;line-height:1;color:#157a52">{{ b.box }}</span>
+              <span style="flex-shrink:0;font-size:13px;white-space:nowrap">{{ b.dateF }}</span>
+              <span style="flex:1;min-width:0;font-size:12.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ b.items }}</span>
+              <span class="mono" style="font-size:13px;font-weight:600">{{ b.totalF }}</span>
+            </div>
+          </sc-for>
+        </div>
       </sc-if>
 
       <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:14px">วันที่รับชำระ <span style="color:#a6afb8">(เลือกย้อนหลังได้)</span>
@@ -1350,7 +1363,7 @@
   <!-- ============ SALE SAVED (confirmation toast) ============ -->
   <sc-if value="{{ saleToastOpen }}" hint-placeholder-val="{{ false }}">
   <div onClick="{{ closeSaleToast }}" style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:80;width:calc(100% - 32px);max-width:440px;background:#123a5e;color:#fff;border-radius:12px;padding:12px 16px;box-shadow:0 12px 32px rgba(0,0,0,.28);cursor:pointer">
-    <div style="font-size:14px;font-weight:700;margin-bottom:4px">✓ บันทึกแล้ว · {{ saleToast.custName }}</div>
+    <div style="font-size:14px;font-weight:700;margin-bottom:4px">✓ {{ saleToast.title }} · {{ saleToast.custName }}</div>
     <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;font-size:13px">
       <span>{{ saleToast.items }}</span>
       <span style="{{ saleToastMethodStyle }}">{{ saleToastMethod }}</span>
@@ -2180,6 +2193,12 @@ class Component extends DCLogic {
       + ' · ' + this.billItems(lastBill.rows) + ' · ' + this.methodLabel(lastBill.method) + ' ' + this.fmt(lastBill.total) : '';
     V.lastBillStyle = 'font-size:12px;margin-top:5px;' + (lastBill && lastBill.date === st.selectedDate ? 'color:#b45309;font-weight:600' : 'color:#6b7787');
     V.custNotPicked = !sf.customerId && !!(sf.customerQuery || '').trim() && !st.suggestOpen;
+    // What the picked customer still owes, with a shortcut to collect it — 60% of
+    // past debt collections happened on a day the same customer got a delivery.
+    const owed = sf.customerId ? this.payBills({ customerId: sf.customerId }) : [];
+    V.custOwes = owed.length > 0;
+    V.custOwesText = owed.length ? 'ค้างอยู่ ' + this.fmt(owed.reduce((a, b) => a + b.total, 0)) + ' · ' + owed.length + ' บิล (เก่าสุด ' + this.fmtDate(owed[0].date) + ')' : '';
+    V.payCustDebt = () => { if (sf.customerId) this.openBulkPay(sf.customerId); };
     // Typing clears the picked customer, and with it a method that was only guessed for them.
     V.onCustQuery = e => this.setState(s => ({ suggestOpen: true, saleForm: { ...s.saleForm, customerQuery: e.target.value, customerId: '',
       ...(s.saleForm.methodAuto ? { method: '', methodAuto: false } : {}) } }));
@@ -2389,21 +2408,28 @@ class Component extends DCLogic {
         slipImg: pm.slip ? React.createElement('img', { src: pm.slip, style: { width: 44, height: 44, objectFit: 'cover', borderRadius: 8, border: '1px solid #dce2e8' } }) : null,
       };
       if (pm.bulk) {
-        const unpaid = pm.saleIds
-          ? st.sales.filter(x => pm.saleIds.includes(x.id) && !x.paid)
-          : st.sales.filter(x => x.customerId === pm.customerId && !x.paid && x.date >= pm.from && x.date <= pm.to);
-        const total = unpaid.reduce((a, x) => a + x.total, 0);
+        const bills = this.payBills(pm);
+        const ticked = bills.filter(b => !pm.unchecked.includes(b.key));
+        const toggle = key => this.setState(s => ({ payModal: { ...s.payModal,
+          unchecked: s.payModal.unchecked.includes(key) ? s.payModal.unchecked.filter(k => k !== key) : [...s.payModal.unchecked, key] } }));
+        const allTicked = ticked.length === bills.length;
         V.pay = { ...common, bulk: true, customerName: this.custName(pm.customerId),
-          typeLabel: (pm.docNo ? 'ตามใบ ' + pm.docNo + ' · ' : '') + 'ค้างชำระ ' + unpaid.length + ' รายการ', amountF: this.fmt(total),
-          bulkCount: unpaid.length, from: pm.from, to: pm.to };
+          typeLabel: (pm.docNo ? 'ตามใบ ' + pm.docNo + ' · ' : '') + 'เลือก ' + ticked.length + ' จาก ' + bills.length + ' บิล',
+          amountF: this.fmt(ticked.reduce((a, b) => a + b.total, 0)),
+          noneTicked: ticked.length === 0,
+          toggleAllLabel: allTicked ? 'ไม่เลือกเลย' : 'เลือกทั้งหมด',
+          bills: bills.map(b => { const on = !pm.unchecked.includes(b.key); return {
+            dateF: b.date === st.selectedDate ? 'วันนี้' : this.fmtDate(b.date), items: this.billItems(b.rows), totalF: this.fmt(b.total),
+            box: on ? '☑' : '☐', onToggle: () => toggle(b.key),
+            rowStyle: 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid #f2f5f7;cursor:pointer;' + (on ? 'background:#fff' : 'background:#f7f9fb;color:#9aa4ae'),
+          }; }) };
+        V.togglePayAll = () => this.setState(s => ({ payModal: { ...s.payModal, unchecked: allTicked ? bills.map(b => b.key) : [] } }));
       } else {
         const s = st.sales.find(x => x.id === pm.saleId) || {};
         V.pay = { ...common, bulk: false, customerName: this.custName(s.customerId), typeLabel: this.typeLabel(s.type), amountF: this.fmt(s.total || 0) };
       }
     } else { V.payModalOpen = false; }
     V.onPayDate = e => this.setState(s => ({ payModal: { ...s.payModal, date: e.target.value } }));
-    V.onPayFrom = e => this.setState(s => ({ payModal: { ...s.payModal, from: e.target.value } }));
-    V.onPayTo = e => this.setState(s => ({ payModal: { ...s.payModal, to: e.target.value } }));
     V.setPayCash = () => this.setState(s => ({ payModal: { ...s.payModal, method: 'cash' } }));
     V.setPayTransfer = () => this.setState(s => ({ payModal: { ...s.payModal, method: 'transfer' } }));
     V.onPaySlip = e => this.readSlip(e, 'pay');
@@ -2941,7 +2967,7 @@ class Component extends DCLogic {
   }
   openInvoicePay(v, pay) {
     if (!pay.unpaidIds.length) return;
-    this.setState({ payModal: { bulk: true, saleIds: pay.unpaidIds, customerId: v.customerId,
+    this.setState({ payModal: { bulk: true, saleIds: pay.unpaidIds, customerId: v.customerId, unchecked: [],
       from: v.from, to: v.to, docNo: v.docNo, date: this.isoLocal(new Date()), method: 'cash', slip: null } });
   }
   async uploadSlip(base64DataUrl, employeeId, hint) {
@@ -3112,7 +3138,7 @@ class Component extends DCLogic {
         window.alert('บันทึกไม่สำเร็จ — ข้อมูลที่กรอกยังอยู่ ตรวจสอบอินเทอร์เน็ตแล้วกดบันทึกอีกครั้ง\n(' + error.message + ')');
         return;
       }
-      this.showSaleToast({ custName, items: this.billItems(lines), method: sf.method, totalF: this.fmt(rows.reduce((a, r) => a + r.total, 0)) });
+      this.showSaleToast({ title: 'บันทึกแล้ว', custName, items: this.billItems(lines), method: sf.method, totalF: this.fmt(rows.reduce((a, r) => a + r.total, 0)) });
       this.setState(s => ({ suggestOpen: false, saleForm: { ...s.saleForm, customerId: '', customerQuery: '', method: '', methodAuto: false, slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] } }));
       await this.loadData();
     } finally {
@@ -3204,12 +3230,22 @@ class Component extends DCLogic {
     await this.loadData();
   }
   openPay(id) { this.setState({ payModal: { saleId: id, date: this.state.selectedDate, method: 'cash', slip: null } }); }
+  // Bulk รับชำระ lists every unpaid bill as a tick box, all ticked to start.
+  // A quarter of past collections were partial and only about half of those
+  // paid the oldest bills first, so picking bills beats a from–to date range.
   openBulkPay(customerId) {
-    const unpaid = this.state.sales.filter(x => x.customerId === customerId && !x.paid);
-    const ds = [...new Set(unpaid.map(x => x.date))].sort();
-    const from = ds[0] || this.state.selectedDate;
-    const to = ds[ds.length - 1] || this.state.selectedDate;
-    this.setState({ payModal: { bulk: true, customerId, from, to, date: this.state.selectedDate, method: 'cash', slip: null } });
+    this.setState({ payModal: { bulk: true, customerId, unchecked: [], date: this.state.selectedDate, method: 'cash', slip: null } });
+  }
+  // The unpaid bills a bulk payment can settle — the document's own sales when
+  // paying from the register, otherwise everything the customer owes — oldest first.
+  payBills(pm) {
+    const rows = pm.saleIds
+      ? this.state.sales.filter(x => pm.saleIds.includes(x.id) && !x.paid)
+      : this.state.sales.filter(x => x.customerId === pm.customerId && !x.paid);
+    const g = {};
+    rows.forEach(r => { const k = r.groupId || r.id; (g[k] = g[k] || []).push(r); });
+    return Object.entries(g).map(([key, rs]) => ({ key, rows: rs, date: rs[0].date, total: rs.reduce((a, r) => a + r.total, 0) }))
+      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
   }
   openInvoice(id) { const s = this.state.sales.find(x => x.id === id); if (!s) return; this.setState({ invoiceOrder: { customerId: s.customerId, range: 'day', from: s.date, to: s.date } }); }
   openInvoiceRange(customerId, from, to, range) { this.setState({ invoiceOrder: { customerId, range: range || 'custom', from, to } }); }
@@ -3368,27 +3404,36 @@ class Component extends DCLogic {
     await this.loadData();
   }
   async confirmPay() {
-    const pm = this.state.payModal; if (!pm) return;
+    const pm = this.state.payModal; if (!pm || this.payingNow) return;
     const custId = pm.bulk ? pm.customerId : (this.state.sales.find(x => x.id === pm.saleId) || {}).customerId;
+    // Bulk pays exactly the ticked bills (from the document register, only that document's sales).
+    const picked = pm.bulk ? this.payBills(pm).filter(b => !pm.unchecked.includes(b.key)) : null;
+    const ids = pm.bulk ? picked.flatMap(b => b.rows.map(r => r.id)) : [pm.saleId];
+    if (!ids.length) { window.alert('เลือกบิลที่ลูกค้าจ่ายอย่างน้อย 1 บิล'); return; }
+    const total = pm.bulk ? picked.reduce((a, b) => a + b.total, 0) : ((this.state.sales.find(x => x.id === pm.saleId) || {}).total || 0);
     const cust = this.state.customers.find(c => c.id === custId);
     const empId = cust ? cust.employeeId : (this.EMP[0] && this.EMP[0].id);
-    let slipPath;
-    // pm.slip may already be a signed https URL (untouched from load) or a fresh base64 capture — only upload fresh captures.
-    if (pm.method === 'transfer' && pm.slip && pm.slip.startsWith('data:')) {
-      slipPath = await this.uploadSlip(pm.slip, empId, 'pay-' + (pm.bulk ? 'bulk' : pm.saleId));
+    this.payingNow = true;
+    try {
+      let slipPath;
+      // pm.slip may already be a signed https URL (untouched from load) or a fresh base64 capture — only upload fresh captures.
+      if (pm.method === 'transfer' && pm.slip && pm.slip.startsWith('data:')) {
+        slipPath = await this.uploadSlip(pm.slip, empId, 'pay-' + (pm.bulk ? 'bulk' : pm.saleId));
+      }
+      const update = { paid: true, paid_date: pm.date, method: pm.method };
+      if (pm.method === 'transfer' && slipPath) update.slip_url = slipPath;
+      const { error } = await supabase.from('sales').update(update).in('id', ids).eq('paid', false);
+      if (error) {
+        console.error('confirmPay failed', error);
+        window.alert('บันทึกการรับชำระไม่สำเร็จ — ตรวจสอบอินเทอร์เน็ตแล้วกดยืนยันอีกครั้ง\n(' + error.message + ')');
+        return;
+      }
+      this.showSaleToast({ title: 'รับชำระแล้ว', custName: this.custName(custId), items: pm.bulk ? picked.length + ' บิล' : '1 บิล', method: pm.method, totalF: this.fmt(total) });
+      this.setState({ payModal: null });
+      await this.loadData();
+    } finally {
+      this.payingNow = false;
     }
-    const update = { paid: true, paid_date: pm.date, method: pm.method };
-    if (pm.method === 'transfer' && slipPath) update.slip_url = slipPath;
-    let q = supabase.from('sales').update(update);
-    // Paying from the document register targets the exact sales the invoice
-    // froze, so a sale added later inside the same dates isn't swept in.
-    if (pm.saleIds) q = q.in('id', pm.saleIds);
-    else if (pm.bulk) q = q.eq('customer_id', pm.customerId).eq('paid', false).gte('sale_date', pm.from).lte('sale_date', pm.to);
-    else q = q.eq('id', pm.saleId);
-    const { error } = await q;
-    if (error) { console.error('confirmPay failed', error); return; }
-    this.setState({ payModal: null });
-    await this.loadData();
   }
   // Sales already settled by an issued ใบเสร็จรับเงิน (REC). Their paid status
   // is owned by that receipt, so it must be reversed by cancelling the receipt
