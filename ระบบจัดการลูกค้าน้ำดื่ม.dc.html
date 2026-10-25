@@ -2458,13 +2458,15 @@ class Component extends DCLogic {
         const typeOptions = [{ value: '', label: 'เลือกประเภทสินค้า' }].concat(
           this.TYPES.filter(t => t.key === r.type || usedTypes.indexOf(t.key) === -1).map(t => ({ value: t.key, label: t.label }))
         );
-        // Price options for the chosen type (real prices only; a non-standard saved
+        // Price options for the chosen type (real prices + ฿0 for coupons; a non-standard saved
         // value is kept as "กำหนดเอง" so it is never silently dropped).
         const priceOptions = [{ value: '', label: tdef ? 'เลือกราคา' : '—' }];
         if (tdef) {
           const cand = (tdef.prices && tdef.prices.length) ? tdef.prices : [tdef.price];
           const seen = {};
           cand.forEach(p => { const v = String(p); if (!seen[v]) { seen[v] = 1; priceOptions.push({ value: v, label: '฿' + p }); } });
+          // ฿0 = customer pays by coupon book (money was recorded when the book was sold).
+          if (tdef.key !== 'coupon') { seen['0'] = 1; priceOptions.push({ value: '0', label: '฿0 (คูปอง)' }); }
           if (r.price && !seen[String(r.price)]) priceOptions.push({ value: String(r.price), label: '฿' + r.price + ' (กำหนดเอง)' });
         }
         return {
@@ -3375,7 +3377,7 @@ class Component extends DCLogic {
     // Build the per-customer locked prices from the editor rows: keep only rows
     // with a type and a positive price (last row wins if a type repeats).
     const customPrices = {};
-    (ce.priceLockRows || []).forEach(r => { const n = parseFloat(r.price); if (r.type && n > 0) customPrices[r.type] = n; });
+    (ce.priceLockRows || []).forEach(r => { const n = parseFloat(r.price); if (r.type && n >= 0) customPrices[r.type] = n; });
     if (ce.id == null) {
       const row = { name: ce.name, invoice_name: ce.invoiceName || '', phone: ce.phone || '', address: ce.address || '', tax_id: ce.taxId || '', contact: ce.contact || '', employee_id: ce.employeeId, custom_prices: customPrices };
       const { data, error } = await supabase.from('customers').insert(row).select().single();
