@@ -2243,6 +2243,8 @@ class Component extends DCLogic {
     const outstandingBy = {}; st.sales.forEach(s => { if (!s.paid) outstandingBy[s.customerId] = (outstandingBy[s.customerId] || 0) + s.total; });
     const outstanding = id => outstandingBy[id] || 0;
     const filtered = scopeCust.filter(c => !q || c.name.toLowerCase().includes(q) || c.phone.includes(q));
+    // Owner sees the biggest debtors first; ties keep the original order (stable sort).
+    if (isOwner) filtered.sort((a, b) => outstanding(b.id) - outstanding(a.id));
     const avatars = ['#1c5f96', '#157a52', '#b45309', '#7a52b4', '#123a5e'];
     V.customerList = filtered.map((c, i) => {
       const out = outstanding(c.id); const active = c.id === st.selectedCustomerId;
