@@ -459,14 +459,35 @@
               <span style="font-size:12.5px;font-weight:600;color:#4a5a6a">รับชำระหนี้ค้างในช่วงนี้ · {{ det.debtCollectedCount }} บิล</span>
               <span class="mono" style="font-size:13.5px;font-weight:700;color:#7a52b4">{{ det.debtCollectedTotalF }}</span>
             </div>
-            <sc-for list="{{ det.debtCollected }}" as="d" hint-placeholder-count="2">
-              <div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px solid #f6f8fa;font-size:12px">
-                <span style="flex:1;min-width:0;color:#1f2a37;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ d.customerName }}</span>
-                <span style="font-size:10.5px;color:#6b7787;background:#f2f5f7;border-radius:20px;padding:2px 8px;white-space:nowrap">{{ d.methodLabel }}</span>
-                <span style="font-size:11px;color:#a6afb8;white-space:nowrap">บิล {{ d.saleDateF }}</span>
-                <span class="mono" style="font-weight:600;color:#157a52;white-space:nowrap">{{ d.amountF }}</span>
+            <sc-for list="{{ det.debtGroups }}" as="g" hint-placeholder-count="2">
+              <div style="border-bottom:1px solid #f6f8fa">
+                <button onClick="{{ g.onToggle }}" style="width:100%;display:flex;align-items:center;gap:9px;padding:8px 0;background:none;border:none;cursor:pointer;text-align:left;font-family:inherit;font-size:12.5px">
+                  <span class="mono" style="font-size:12px;color:#8a94a0;width:12px">{{ g.chevron }}</span>
+                  <span style="flex:1;min-width:0;color:#1f2a37;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ g.customerName }}</span>
+                  <span style="font-size:10.5px;color:#6b7787;background:#f2f5f7;border-radius:20px;padding:2px 8px;white-space:nowrap">{{ g.countLabel }}</span>
+                  <sc-if value="{{ g.hasVat }}" hint-placeholder-val="{{ false }}"><span style="font-size:10px;color:#1c5f96;background:#eef4fb;border-radius:20px;padding:2px 7px;white-space:nowrap">{{ g.vatF }}</span></sc-if>
+                  <span class="mono" style="font-weight:700;color:#157a52;white-space:nowrap">{{ g.totalF }}</span>
+                </button>
+                <sc-if value="{{ g.open }}" hint-placeholder-val="{{ false }}">
+                  <div style="margin:0 0 8px 21px;padding:2px 10px;background:#fafbfc;border-radius:8px">
+                    <sc-for list="{{ g.items }}" as="d" hint-placeholder-count="2">
+                      <div style="display:flex;align-items:center;gap:9px;padding:6px 0;border-bottom:1px dashed #eef2f5;font-size:11.5px">
+                        <span style="flex:1;min-width:0;color:#4a5a6a;white-space:nowrap">บิล {{ d.saleDateF }}</span>
+                        <span style="font-size:10.5px;color:#a6afb8;white-space:nowrap">รับ {{ d.paidDateF }}</span>
+                        <span style="font-size:10.5px;color:#6b7787;background:#eef2f5;border-radius:20px;padding:2px 8px;white-space:nowrap">{{ d.methodLabel }}</span>
+                        <span style="text-align:right;white-space:nowrap">
+                          <span class="mono" style="display:block;font-weight:600;color:#157a52">{{ d.amountF }}</span>
+                          <sc-if value="{{ d.hasVat }}" hint-placeholder-val="{{ false }}"><span class="mono" style="display:block;font-size:9.5px;color:#8a94a0">{{ d.vatNote }}</span></sc-if>
+                        </span>
+                      </div>
+                    </sc-for>
+                  </div>
+                </sc-if>
               </div>
             </sc-for>
+            <sc-if value="{{ det.debtHasVat }}" hint-placeholder-val="{{ false }}">
+              <div style="font-size:10.5px;color:#1c5f96;margin-top:7px;line-height:1.5">รวม VAT 7% ของบิลที่ออกใบกำกับภาษีแล้ว {{ det.debtVatF }} (ยอด VAT ไม่ได้บวกเข้า “เงินนำส่ง”)</div>
+            </sc-if>
             <div style="font-size:10.5px;color:#a6afb8;margin-top:7px;line-height:1.5">ยอดรับชำระหนี้ค้างถูกบวกเข้า “เงินนำส่ง” ของวันที่รับเงินแล้ว</div>
           </div>
           </sc-if>
@@ -1703,7 +1724,7 @@ class Component extends DCLogic {
     typeFilter: 'all', expFilter: 'all', plPeriod: 'month', facPeriod: 'month',
     salesTypeFilter: 'all', salesStatusFilter: 'all',
     custRange: 'all', custFrom: '', custTo: '',
-    docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false, docOnlyOwing: false, docOpenGroups: {},
+    docPeriod: 'month', docTypeFilter: 'all', docSearch: '', docIssuing: false, docOnlyOwing: false, docOpenGroups: {}, debtOpenGroups: {},
     saleForm: { employeeId: 'e1', customerId: '', customerQuery: '', method: '', methodAuto: false, slip: null, lines: [{ type: '18.9L', qty: '', price: '35' }] },
     saleSaving: false, saleToast: null,
     expForm: { category: 'ค่าน้ำมัน', amount: '', note: '' },
@@ -2065,13 +2086,46 @@ class Component extends DCLogic {
       const remit = m.cash + m.oldCash - m.exp; // เงินนำส่งสุทธิ = สด + เก็บเก่า(เงินสด) − ค่าใช้จ่าย (ไม่รวมเงินโอน)
       const netProfit = m.sales - m.exp - payC.total;
       const debtColl = st.sales.filter(s => s.employeeId === focusEmp.id && s.paid && s.paidDate && s.paidDate >= R.a && s.paidDate <= R.b && s.paidDate > s.date).sort((x, y) => x.paidDate < y.paidDate ? -1 : 1);
+      // Companies billed with VAT actually pay total × 1.07. A bill counts as
+      // VAT-charged when an issued document that carries VAT (vat > 0 — i.e. not
+      // บิลเงินสด) covers it; old documents without sale_ids match by customer + period.
+      const vatDocs = st.invoices.filter(v => v.status === 'issued' && v.vat > 0.01);
+      const hasVat = s => vatDocs.some(v => (v.saleIds && v.saleIds.length) ? v.saleIds.includes(s.id) : (v.customerId === s.customerId && s.date >= v.from && s.date <= v.to));
+      const debtAmt = s => hasVat(s) ? Math.round(s.total * 1.07 * 100) / 100 : s.total;
+      const debtVat = debtColl.reduce((a, s) => a + debtAmt(s) - s.total, 0);
       V.det = {
         name: focusEmp.name, isDay,
         pay: payView, showPay: !payC.noPay,
         hasDebtCollected: debtColl.length > 0,
         debtCollectedCount: debtColl.length,
-        debtCollectedTotalF: this.fmt(debtColl.reduce((a, s) => a + s.total, 0)),
-        debtCollected: debtColl.map(s => ({ customerName: this.custName(s.customerId), saleDateF: this.fmtDate(s.date), amountF: this.fmt(s.total), methodLabel: s.method === 'transfer' ? 'โอน' : 'เงินสด' })),
+        debtCollectedTotalF: '฿' + this.fmt2(debtColl.reduce((a, s) => a + debtAmt(s), 0)),
+        debtHasVat: debtVat > 0.005,
+        debtVatF: '฿' + this.fmt2(debtVat),
+        // Grouped per customer: header shows the customer's total; tapping it
+        // folds out each bill (debtOpenGroups tracks which customers are open).
+        debtGroups: (() => {
+          const gm = {};
+          debtColl.forEach(s => { (gm[s.customerId] = gm[s.customerId] || []).push(s); });
+          return Object.entries(gm).map(([cid, list]) => {
+            const total = list.reduce((a, s) => a + debtAmt(s), 0);
+            const vat = list.reduce((a, s) => a + debtAmt(s) - s.total, 0);
+            const open = !!st.debtOpenGroups[cid];
+            return {
+              total,
+              customerName: this.custName(cid) || '(ไม่ระบุชื่อ)',
+              countLabel: list.length + ' บิล',
+              totalF: '฿' + this.fmt2(total),
+              hasVat: vat > 0.005, vatF: 'VAT ฿' + this.fmt2(vat),
+              open, chevron: open ? '▾' : '▸',
+              onToggle: () => this.setState(x => ({ debtOpenGroups: { ...x.debtOpenGroups, [cid]: !x.debtOpenGroups[cid] } })),
+              items: list.map(s => {
+                const v = hasVat(s);
+                return { saleDateF: this.fmtDate(s.date), paidDateF: this.fmtDate(s.paidDate), amountF: '฿' + this.fmt2(debtAmt(s)), methodLabel: s.method === 'transfer' ? 'โอน' : 'เงินสด',
+                  hasVat: v, vatNote: v ? ('฿' + this.fmt2(s.total) + ' + VAT 7%') : '' };
+              }),
+            };
+          }).sort((a, b) => b.total - a.total);
+        })(),
         remitF: this.fmt(remit), remitBg: remit >= 0 ? '#eef4fb' : '#fbecec', remitFg: remit >= 0 ? '#1c5f96' : '#a33',
         payTotalF: this.fmt(payC.total),
         netProfitF: this.fmt(netProfit),
