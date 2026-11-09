@@ -1288,6 +1288,13 @@
             </div>
           </sc-for>
         </div>
+        <div onClick="{{ togglePayReceipt }}" style="{{ pay.recRowStyle }}">
+          <span style="font-size:20px;line-height:1;color:#157a52">{{ pay.recBox }}</span>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:13px;font-weight:600;color:#123a5e">ออกใบเสร็จรับเงินใบเดียว สำหรับบิลที่ติ๊ก</div>
+            <div style="font-size:11.5px;color:#6b7787;margin-top:2px">{{ pay.recHint }}</div>
+          </div>
+        </div>
       </sc-if>
 
       <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:14px">วันที่รับชำระ <span style="color:#a6afb8">(เลือกย้อนหลังได้)</span>
@@ -1317,7 +1324,7 @@
 
       <div style="display:flex;gap:10px;margin-top:4px">
         <button onClick="{{ cancelPay }}" style="flex:1;padding:11px;background:#f1f4f7;color:#4a5a6a;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">ยกเลิก</button>
-        <button onClick="{{ confirmPay }}" style="flex:1.4;padding:11px;background:#157a52;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">ยืนยันรับเงิน</button>
+        <button onClick="{{ confirmPay }}" style="flex:1.4;padding:11px;background:#157a52;color:#fff;border:none;border-radius:9px;font-size:14px;font-weight:600;cursor:pointer">{{ pay.confirmLabel }}</button>
       </div>
     </div>
   </div>
@@ -2469,7 +2476,17 @@ class Component extends DCLogic {
         const toggle = key => this.setState(s => ({ payModal: { ...s.payModal,
           unchecked: s.payModal.unchecked.includes(key) ? s.payModal.unchecked.filter(k => k !== key) : [...s.payModal.unchecked, key] } }));
         const allTicked = ticked.length === bills.length;
+        // ใบเสร็จรับเงินใบเดียวครอบทุกบิลที่ติ๊ก — receipts always carry VAT 7%
+        // (same as issuing type 'receipt' from the document window).
+        const rec = this.docAmounts(ticked.flatMap(b => b.rows), false);
         V.pay = { ...common, bulk: true, customerName: this.custName(pm.customerId),
+          recBox: pm.receipt ? '☑' : '☐',
+          recRowStyle: 'display:flex;align-items:flex-start;gap:10px;padding:10px 12px;border-radius:10px;cursor:pointer;margin-bottom:14px;'
+            + (pm.receipt ? 'background:#eef7f2;border:1px solid #bfe0cf' : 'background:#f7f9fb;border:1px solid #e5e9ee'),
+          recHint: ticked.length
+            ? ('ใบเดียว ' + ticked.length + ' บิล · ยอดในใบเสร็จ ' + this.fmt2(rec.grand) + ' (รวม VAT 7% ' + this.fmt2(rec.vat) + ')')
+            : 'ติ๊กบิลอย่างน้อย 1 บิล',
+          confirmLabel: pm.receipt ? 'ยืนยันรับเงิน + ออกใบเสร็จ' : 'ยืนยันรับเงิน',
           typeLabel: (pm.docNo ? 'ตามใบ ' + pm.docNo + ' · ' : '') + 'เลือก ' + ticked.length + ' จาก ' + bills.length + ' บิล',
           amountF: this.fmt(ticked.reduce((a, b) => a + b.total, 0)),
           noneTicked: ticked.length === 0,
@@ -2482,7 +2499,7 @@ class Component extends DCLogic {
         V.togglePayAll = () => this.setState(s => ({ payModal: { ...s.payModal, unchecked: allTicked ? bills.map(b => b.key) : [] } }));
       } else {
         const s = st.sales.find(x => x.id === pm.saleId) || {};
-        V.pay = { ...common, bulk: false, customerName: this.custName(s.customerId), typeLabel: this.typeLabel(s.type), amountF: this.fmt(s.total || 0) };
+        V.pay = { ...common, bulk: false, customerName: this.custName(s.customerId), typeLabel: this.typeLabel(s.type), amountF: this.fmt(s.total || 0), confirmLabel: 'ยืนยันรับเงิน' };
       }
     } else { V.payModalOpen = false; }
     V.onPayDate = e => this.setState(s => ({ payModal: { ...s.payModal, date: e.target.value } }));
@@ -2490,6 +2507,7 @@ class Component extends DCLogic {
     V.setPayTransfer = () => this.setState(s => ({ payModal: { ...s.payModal, method: 'transfer' } }));
     V.onPaySlip = e => this.readSlip(e, 'pay');
     V.clearPaySlip = () => this.setState(s => ({ payModal: { ...s.payModal, slip: null } }));
+    V.togglePayReceipt = () => this.setState(s => ({ payModal: { ...s.payModal, receipt: !s.payModal.receipt } }));
     V.confirmPay = () => this.confirmPay();
     V.cancelPay = () => this.setState({ payModal: null });
 
@@ -2769,8 +2787,11 @@ class Component extends DCLogic {
       // An already-issued document for this exact customer + type + period is
       // reused rather than re-numbered (findIssued), so reprinting never burns
       // a second number. Computed up here because a ใบเสร็จ needs it to pick
-      // which sales it covers.
-      const issued = this.findIssued(o.customerId, docType, from, to);
+      // which sales it covers. A document opened by id (reprint, or a receipt
+      // just issued from picked bills) wins: two receipts can share the same
+      // customer + period, and the period match would show the wrong one.
+      const byId = o.invoiceId ? st.invoices.find(v => v.id === o.invoiceId && v.status === 'issued') : null;
+      const issued = byId || this.findIssued(o.customerId, docType, from, to);
       // ใบเสร็จรับเงิน (receipt) is a settlement document, so it covers only the
       // sales actually being paid off — on a fresh issue that's the still-unpaid
       // rows in the range; on a reprint those rows are now paid, so re-select by
@@ -2778,33 +2799,23 @@ class Component extends DCLogic {
       const covered = docType !== 'receipt' ? raw
         : (issued ? raw.filter(s => (issued.saleIds || []).includes(s.id))
                   : raw.filter(s => !s.paid));
-      // consolidate lines by product (type + unit price) — sum qty & amount per product
-      const grpMap = {};
-      covered.forEach(s => {
-        const key = s.type + '|' + s.price;
-        if (!grpMap[key]) grpMap[key] = { type: s.type, price: s.price, qty: 0, total: 0 };
-        grpMap[key].qty += s.qty;
-        grpMap[key].total += s.total;
-      });
-      const groups = Object.values(grpMap);
       const isRange = from !== to;
-      const base = covered.reduce((a, s) => a + s.total, 0);
       // ใบเสร็จรับเงิน/บิลเงินสด (cash) ไม่คิด VAT — ยอดรวม = มูลค่าสินค้า
       const noVat = docType === 'cash';
-      const vat = noVat ? 0 : base * 0.07, grand = base + vat;
+      const { items, base, vat, grand } = this.docAmounts(covered, noVat);
       const dateLabel = isRange ? (this.fmtDate(from) + ' – ' + this.fmtDate(to)) : this.fmtDate(from);
       V.invoiceOpen = true;
       V.invRangeItems = [['day', 'วันเดียว'], ['month', 'เดือนนี้'], ['quarter', 'ไตรมาสนี้'], ['year', 'ปีนี้'], ['custom', 'กำหนดเอง']].map(([k, l]) => ({ label: l, style: chip(o.range === k), onClick: () => this.setInvoiceRange(k) }));
       V.invShowCustom = o.range === 'custom';
       V.invFrom = from; V.invTo = to;
-      V.onInvFrom = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, from: e.target.value, range: 'custom' } }));
-      V.onInvTo = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, to: e.target.value, range: 'custom' } }));
+      V.onInvFrom = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, from: e.target.value, range: 'custom', invoiceId: null } }));
+      V.onInvTo = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, to: e.target.value, range: 'custom', invoiceId: null } }));
       V.invEmpty = covered.length === 0;
       const docDate = o.docDate || to;
       const dt = this.docTypeInfo(docType);
       V.invDocType = docType;
       V.invDocDate = docDate;
-      V.onInvDocType = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, docType: e.target.value } }));
+      V.onInvDocType = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, docType: e.target.value, invoiceId: null } }));
       V.onInvDocDate = e => this.setState(s => ({ invoiceOrder: { ...s.invoiceOrder, docDate: e.target.value } }));
       // ใบเสร็จรับเงิน records HOW the money came in — that method is written
       // onto the settled sales when the receipt is issued.
@@ -2814,7 +2825,6 @@ class Component extends DCLogic {
       const custPhoneRaw = (cust.phone || '').trim();
       const custTaxRaw = (cust.taxId || '').trim();
       const custNameF = cust.invoiceName || cust.name || '-';
-      const items = groups.map((g, i) => ({ no: i + 1, label: this.typeLabel(g.type), qty: g.qty, priceF: this.fmt2(g.price), amountF: this.fmt2(g.total) }));
 
       // The number is only allocated when the user explicitly issues the
       // document — merely previewing must never consume one. (issued was
@@ -3025,7 +3035,9 @@ class Component extends DCLogic {
   }
   openInvoicePay(v, pay) {
     if (!pay.unpaidIds.length) return;
-    this.setState({ payModal: { bulk: true, saleIds: pay.unpaidIds, customerId: v.customerId, unchecked: [],
+    // Paying a document from the register is the credit-customer flow (DN/BL
+    // then a ใบเสร็จรับเงิน), so the one-receipt option starts ticked here.
+    this.setState({ payModal: { bulk: true, saleIds: pay.unpaidIds, customerId: v.customerId, unchecked: [], receipt: true,
       from: v.from, to: v.to, docNo: v.docNo, date: this.isoLocal(new Date()), method: 'cash', slip: null } });
   }
   async uploadSlip(base64DataUrl, employeeId, hint) {
@@ -3151,6 +3163,24 @@ class Component extends DCLogic {
     today.sort(byTime).forEach(s => { keyed.add(s.customerId); const p = seq.indexOf(s.customerId); if (p >= 0) lastPos = p; });
     const left = seq.map((id, i) => ({ id, i })).filter(x => !keyed.has(x.id));
     return left.filter(x => x.i > lastPos).concat(left.filter(x => x.i <= lastPos)).slice(0, n).map(x => x.id);
+  }
+  // Printed lines + amounts of a document over these sales rows: one line per
+  // product (type + unit price), qty and amount summed. VAT is rounded to
+  // satang in integer cents — the same rule issue_invoice / issue_receipt use
+  // to recompute the stored amounts (supabase/migration-invoice-guards.sql),
+  // so the printed page and the register always agree.
+  docAmounts(rows, noVat) {
+    const grpMap = {};
+    rows.forEach(s => {
+      const key = s.type + '|' + s.price;
+      if (!grpMap[key]) grpMap[key] = { type: s.type, price: s.price, qty: 0, total: 0 };
+      grpMap[key].qty += s.qty;
+      grpMap[key].total += s.total;
+    });
+    const items = Object.values(grpMap).map((g, i) => ({ no: i + 1, label: this.typeLabel(g.type), qty: g.qty, priceF: this.fmt2(g.price), amountF: this.fmt2(g.total) }));
+    const base = rows.reduce((a, s) => a + s.total, 0);
+    const vat = noVat ? 0 : Math.round(Math.round(base * 100) * 7 / 100) / 100;
+    return { items, base, vat, grand: base + vat };
   }
   billItems(rows) { return rows.map(r => { const t = this.TYPES.find(x => x.key === r.type); return (t ? t.short : r.type) + ' ×' + r.qty; }).join(', '); }
   methodLabel(m) { return m === 'transfer' ? 'โอนเงิน' : m === 'credit' ? 'ค้างชำระ' : 'เงินสด'; }
@@ -3292,7 +3322,7 @@ class Component extends DCLogic {
   // A quarter of past collections were partial and only about half of those
   // paid the oldest bills first, so picking bills beats a from–to date range.
   openBulkPay(customerId) {
-    this.setState({ payModal: { bulk: true, customerId, unchecked: [], date: this.state.selectedDate, method: 'cash', slip: null } });
+    this.setState({ payModal: { bulk: true, customerId, unchecked: [], receipt: false, date: this.state.selectedDate, method: 'cash', slip: null } });
   }
   // The unpaid bills a bulk payment can settle — the document's own sales when
   // paying from the register, otherwise everything the customer owes — oldest first.
@@ -3396,7 +3426,7 @@ class Component extends DCLogic {
   }
   // Reopen an issued document exactly as it was filed.
   reprintInvoice(v) {
-    this.setState({ invoiceOrder: { customerId: v.customerId, range: 'custom', from: v.from, to: v.to, docType: v.docType, docDate: v.docDate } });
+    this.setState({ invoiceOrder: { customerId: v.customerId, range: 'custom', from: v.from, to: v.to, docType: v.docType, docDate: v.docDate, invoiceId: v.id } });
   }
   invRangeBounds(range) {
     const today = this.isoLocal(new Date());
@@ -3413,7 +3443,8 @@ class Component extends DCLogic {
     return { from: this.isoLocal(new Date(y, m - 1, 25)), to: this.isoLocal(new Date(y, m, 24)) };
   }
   setInvoiceRange(range) {
-    const o = this.state.invoiceOrder; if (!o) return;
+    const o0 = this.state.invoiceOrder; if (!o0) return;
+    const o = { ...o0, invoiceId: null };
     if (range === 'day') { this.setState({ invoiceOrder: { ...o, range, to: o.from } }); return; }
     // Custom defaults to the 25th of last month → 24th of this month; still editable.
     if (range === 'custom') { const b = this.defaultBillingRange(); this.setState({ invoiceOrder: { ...o, range, from: b.from, to: b.to } }); return; }
@@ -3478,6 +3509,10 @@ class Component extends DCLogic {
       if (pm.method === 'transfer' && pm.slip && pm.slip.startsWith('data:')) {
         slipPath = await this.uploadSlip(pm.slip, empId, 'pay-' + (pm.bulk ? 'bulk' : pm.saleId));
       }
+      if (pm.bulk && pm.receipt) {
+        await this.issueReceiptForBills(custId, picked, pm, slipPath, empId);
+        return;
+      }
       const update = { paid: true, paid_date: pm.date, method: pm.method };
       if (pm.method === 'transfer' && slipPath) update.slip_url = slipPath;
       const { error } = await supabase.from('sales').update(update).in('id', ids).eq('paid', false);
@@ -3492,6 +3527,41 @@ class Component extends DCLogic {
     } finally {
       this.payingNow = false;
     }
+  }
+  // One ใบเสร็จรับเงิน (REC) for the bills ticked in the bulk รับชำระ window —
+  // a customer paying several bills at once gets one receipt, not one each.
+  // issue_receipt numbers the receipt AND marks exactly these sales paid in one
+  // transaction; the period printed is the first–last bill date, and the
+  // receipt is then opened by id for printing (another REC may share that
+  // period, so a period match could show the wrong one).
+  async issueReceiptForBills(custId, picked, pm, slipPath, empId) {
+    const rows = picked.flatMap(b => b.rows).sort((a, b) => a.date < b.date ? -1 : (a.date > b.date ? 1 : 0));
+    const ids = rows.map(r => r.id);
+    const cust = this.state.customers.find(c => c.id === custId) || {};
+    const { items, base, vat, grand } = this.docAmounts(rows, false);
+    const from = rows[0].date, to = rows[rows.length - 1].date;
+    const { data, error } = await supabase.rpc('issue_receipt', {
+      p_doc_date: pm.date, p_from: from, p_to: to,
+      p_customer_id: custId, p_cust_name: cust.invoiceName || cust.name || '-',
+      p_cust_addr: cust.address || '', p_cust_tax_id: (cust.taxId || '').trim(),
+      p_base: base, p_vat: vat, p_grand: grand,
+      p_items: items, p_employee_id: empId || null,
+      p_sale_ids: ids, p_method: pm.method,
+    });
+    if (error) {
+      console.error('issue_receipt (bills) failed', error);
+      window.alert('ออกใบเสร็จไม่สำเร็จ — ยังไม่ได้บันทึกรับเงิน\n(' + error.message + ')');
+      return;
+    }
+    // issue_receipt doesn't know about slips — attach it to the settled bills.
+    if (slipPath) {
+      const { error: e2 } = await supabase.from('sales').update({ slip_url: slipPath }).in('id', ids);
+      if (e2) console.error('attach slip failed', e2);
+    }
+    this.showSaleToast({ title: 'รับชำระ + ออกใบเสร็จ ' + data.doc_no, custName: this.custName(custId), items: picked.length + ' บิล', method: pm.method, totalF: this.fmt(base) });
+    this.setState({ payModal: null });
+    await this.loadData();
+    this.setState({ invoiceOrder: { customerId: custId, range: 'custom', from, to, docType: 'receipt', docDate: pm.date, invoiceId: data.id } });
   }
   // Sales already settled by an issued ใบเสร็จรับเงิน (REC). Their paid status
   // is owned by that receipt, so it must be reversed by cancelling the receipt
