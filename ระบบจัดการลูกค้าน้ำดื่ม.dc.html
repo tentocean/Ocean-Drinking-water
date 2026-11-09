@@ -24,6 +24,8 @@
   .mono{font-family:'IBM Plex Mono',ui-monospace,monospace}
 
   /* ===== Smartphone layout (employee view & app chrome) ===== */
+  /* customer header buttons keep their label on one line; the row wraps instead */
+  .m-custhead button{ white-space:nowrap; }
   @media (max-width:640px){
     html, body{ overflow-x:hidden; }
     .m-wrap{ padding:12px !important; }
@@ -842,13 +844,14 @@
             <div style="display:flex;align-items:flex-start;gap:14px;flex-wrap:wrap">
               <div style="width:48px;height:48px;border-radius:12px;background:#123a5e;color:#fff;display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:600">{{ cust.initial }}</div>
               <div style="flex:1;min-width:180px">
-                <div class="m-custhead" style="display:flex;align-items:center;gap:10px">
+                <div class="m-custhead" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;row-gap:6px">
                   <div style="font-size:18px;font-weight:700">{{ cust.name }}</div>
                   <button onClick="{{ editCustomer }}" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600">✏️ แก้ไขข้อมูล</button>
                   <button onClick="{{ invoiceCustomerRange }}" title="ออกใบกำกับภาษีตามช่วงเวลาที่เลือก" style="border:1px solid #cfe0ee;background:#f4f9fd;color:#1c5f96;cursor:pointer;border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600">🧾 ออกใบกำกับภาษี</button>
                   <sc-if value="{{ cust.hasDebt }}" hint-placeholder-val="{{ false }}">
                     <button onClick="{{ payAllCust }}" title="รับชำระยอดค้างทั้งหมดในครั้งเดียว" style="border:1px solid #f2d9b8;background:#fdf1e3;color:#b45309;cursor:pointer;border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600">💵 รับชำระยอดค้าง</button>
                   </sc-if>
+                  <button onClick="{{ paidReceiptCust }}" title="ออกใบเสร็จรับเงินใบเดียว ให้บิลที่รับเงินไปแล้วแต่ยังไม่มีใบเสร็จ" style="border:1px solid #bfe0cf;background:#eef7f2;color:#157a52;cursor:pointer;border-radius:7px;padding:3px 10px;font-size:11.5px;font-weight:600">🧾 ออกใบเสร็จให้บิลที่จ่ายแล้ว</button>
                   <button onClick="{{ deleteCustomer }}" title="{{ cust.deleteHint }}" style="{{ cust.deleteStyle }}">🗑 ลบลูกค้า</button>
                 </div>
                 <div style="font-size:12.5px;color:#6b7787;margin-top:3px">📍 {{ cust.address }} &nbsp;•&nbsp; 📞 {{ cust.phone }}</div>
@@ -1270,7 +1273,7 @@
   <sc-if value="{{ payModalOpen }}" hint-placeholder-val="{{ false }}">
   <div onClick="{{ cancelPay }}" style="position:fixed;inset:0;z-index:50;background:rgba(16,30,45,.45);display:flex;align-items:center;justify-content:center;padding:20px">
     <div onClick="{{ stop }}" style="background:#fff;border-radius:14px;padding:22px 24px;width:100%;max-width:384px;box-shadow:0 24px 64px rgba(0,0,0,.32)">
-      <div style="font-size:16px;font-weight:700;color:#123a5e">บันทึกการรับชำระ</div>
+      <div style="font-size:16px;font-weight:700;color:#123a5e">{{ pay.title }}</div>
       <div style="font-size:12.5px;color:#8a94a0;margin:4px 0 16px">{{ pay.customerName }} · {{ pay.typeLabel }} · <span class="mono" style="color:#123a5e;font-weight:600">{{ pay.amountF }}</span></div>
 
       <sc-if value="{{ pay.bulk }}" hint-placeholder-val="{{ false }}">
@@ -1288,6 +1291,7 @@
             </div>
           </sc-for>
         </div>
+        <sc-if value="{{ pay.showRecToggle }}" hint-placeholder-val="{{ true }}">
         <div onClick="{{ togglePayReceipt }}" style="{{ pay.recRowStyle }}">
           <span style="font-size:20px;line-height:1;color:#157a52">{{ pay.recBox }}</span>
           <div style="flex:1;min-width:0">
@@ -1295,12 +1299,14 @@
             <div style="font-size:11.5px;color:#6b7787;margin-top:2px">{{ pay.recHint }}</div>
           </div>
         </div>
+        </sc-if>
       </sc-if>
 
-      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:14px">วันที่รับชำระ <span style="color:#a6afb8">(เลือกย้อนหลังได้)</span>
+      <label style="display:block;font-size:12px;color:#6b7787;margin-bottom:14px">{{ pay.dateLabel }} <span style="color:#a6afb8">(เลือกย้อนหลังได้)</span>
         <input type="date" value="{{ pay.date }}" onChange="{{ onPayDate }}" style="width:100%;margin-top:5px;padding:10px 12px;border:1px solid #dce2e8;border-radius:9px;font-size:14px" />
       </label>
 
+      <sc-if value="{{ pay.showMethod }}" hint-placeholder-val="{{ true }}">
       <div style="font-size:12px;color:#6b7787;margin-bottom:6px">วิธีชำระ</div>
       <div style="display:flex;background:#eef2f5;border-radius:8px;padding:3px;gap:3px;margin-bottom:14px">
         <button onClick="{{ setPayCash }}" style="{{ pay.mCashStyle }}">เงินสด</button>
@@ -1320,6 +1326,7 @@
             </label>
           </sc-if>
         </div>
+      </sc-if>
       </sc-if>
 
       <div style="display:flex;gap:10px;margin-top:4px">
@@ -2465,6 +2472,7 @@ class Component extends DCLogic {
       const pm = st.payModal;
       V.payModalOpen = true;
       const common = {
+        title: 'บันทึกการรับชำระ', dateLabel: 'วันที่รับชำระ', showRecToggle: !!pm.bulk, showMethod: true,
         date: pm.date, method: pm.method,
         mCashStyle: seg(pm.method === 'cash', '#157a52'), mTransferStyle: seg(pm.method === 'transfer', '#1c5f96'),
         isTransfer: pm.method === 'transfer', hasSlip: !!pm.slip, noSlip: !pm.slip,
@@ -2497,6 +2505,21 @@ class Component extends DCLogic {
             rowStyle: 'display:flex;align-items:center;gap:10px;padding:10px 12px;border-top:1px solid #f2f5f7;cursor:pointer;' + (on ? 'background:#fff' : 'background:#f7f9fb;color:#9aa4ae'),
           }; }) };
         V.togglePayAll = () => this.setState(s => ({ payModal: { ...s.payModal, unchecked: allTicked ? bills.map(b => b.key) : [] } }));
+        // Receipt-only: the money is already in, so no method / slip and no
+        // receipt toggle (that's the whole point); each bill shows when it was
+        // paid, and the date is the receipt date, defaulting to the latest one.
+        if (pm.receiptOnly) {
+          Object.assign(V.pay, {
+            title: 'ออกใบเสร็จให้บิลที่จ่ายแล้ว', dateLabel: 'วันที่ในใบเสร็จ', showRecToggle: false, showMethod: false,
+            date: pm.date || (ticked.length ? this.paidReceiptDate(ticked) : ''),
+            typeLabel: bills.length ? ('ติ๊กบิลที่จะรวมในใบเสร็จ · เลือก ' + ticked.length + ' จาก ' + bills.length + ' บิล')
+              : 'ไม่มีบิลที่จ่ายแล้วซึ่งยังไม่มีใบเสร็จ',
+            amountF: ticked.length ? this.fmt2(rec.grand) + ' (รวม VAT ' + this.fmt2(rec.vat) + ')' : '฿0',
+            confirmLabel: 'ออกใบเสร็จ',
+          });
+          V.pay.bills = V.pay.bills.map((row, i) => ({ ...row,
+            items: 'จ่าย ' + (bills[i].paidDate ? this.fmtDate(bills[i].paidDate) : '?') + ' · ' + row.items }));
+        }
       } else {
         const s = st.sales.find(x => x.id === pm.saleId) || {};
         V.pay = { ...common, bulk: false, customerName: this.custName(s.customerId), typeLabel: this.typeLabel(s.type), amountF: this.fmt(s.total || 0), confirmLabel: 'ยืนยันรับเงิน' };
@@ -2560,6 +2583,7 @@ class Component extends DCLogic {
     V.editCustomer = () => { const c = st.customers.find(x => x.id === st.selectedCustomerId); if (c) this.setState({ custEdit: { ...c, customPrices: { ...(c.customPrices || {}) }, priceLockRows: Object.keys(c.customPrices || {}).map(k => ({ type: k, price: String(c.customPrices[k]) })) } }); };
     V.deleteCustomer = () => this.deleteCustomer();
     V.payAllCust = () => { if (st.selectedCustomerId) this.openBulkPay(st.selectedCustomerId); };
+    V.paidReceiptCust = () => { if (st.selectedCustomerId) this.openPaidReceipt(st.selectedCustomerId); };
     V.invoiceCustomerRange = () => { if (st.selectedCustomerId) this.openInvoiceRange(st.selectedCustomerId, crA === '0000-01-01' ? this.isoLocal(new Date()).slice(0,4) + '-01-01' : crA, crB === '9999-12-31' ? this.isoLocal(new Date()) : crB, st.custRange === 'all' ? 'year' : st.custRange); };
     V.addCustomer = () => this.setState({ custEdit: { id: null, name: '', invoiceName: '', phone: '', address: '', taxId: '', contact: '', employeeId: (effEmp && effEmp !== null) ? effEmp : this.EMP[0].id, customPrices: {}, priceLockRows: [] } });
 
@@ -3326,14 +3350,46 @@ class Component extends DCLogic {
   }
   // The unpaid bills a bulk payment can settle — the document's own sales when
   // paying from the register, otherwise everything the customer owes — oldest first.
+  // In receipt-only mode (ออกใบเสร็จให้บิลที่จ่ายแล้ว) the list is instead the
+  // customer's already-paid bills that no receipt covers yet, newest first.
   payBills(pm) {
-    const rows = pm.saleIds
-      ? this.state.sales.filter(x => pm.saleIds.includes(x.id) && !x.paid)
-      : this.state.sales.filter(x => x.customerId === pm.customerId && !x.paid);
+    let rows;
+    if (pm.receiptOnly) {
+      const covered = this.receiptCoveredSaleIds();
+      rows = this.state.sales.filter(x => x.customerId === pm.customerId && x.paid && !covered.has(x.id));
+    } else {
+      rows = pm.saleIds
+        ? this.state.sales.filter(x => pm.saleIds.includes(x.id) && !x.paid)
+        : this.state.sales.filter(x => x.customerId === pm.customerId && !x.paid);
+    }
     const g = {};
     rows.forEach(r => { const k = r.groupId || r.id; (g[k] = g[k] || []).push(r); });
-    return Object.entries(g).map(([key, rs]) => ({ key, rows: rs, date: rs[0].date, total: rs.reduce((a, r) => a + r.total, 0) }))
-      .sort((a, b) => a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+    const dir = pm.receiptOnly ? -1 : 1;
+    return Object.entries(g).map(([key, rs]) => ({ key, rows: rs, date: rs[0].date, total: rs.reduce((a, r) => a + r.total, 0),
+        paidDate: rs.map(r => r.paidDate).filter(Boolean).sort().pop() || null, method: rs[0].method }))
+      .sort((a, b) => dir * (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+  }
+  // Sales that already have a receipt: an issued ใบเสร็จรับเงิน (REC), a
+  // ใบกำกับภาษี/ใบเสร็จ (IV) or a ใบเสร็จ/บิลเงินสด (RC) — all three are
+  // receipts, so a paid bill on any of them needs no second one.
+  receiptCoveredSaleIds() {
+    const set = new Set();
+    this.state.invoices.forEach(v => {
+      if (v.status === 'issued' && (v.docType === 'receipt' || v.docType === 'taxreceipt' || v.docType === 'cash'))
+        (v.saleIds || []).forEach(id => set.add(id));
+    });
+    return set;
+  }
+  // Receipt for bills paid earlier without one. Nothing starts ticked (the list
+  // is the customer's whole paid history); the receipt date defaults to the
+  // latest payment date among the ticked bills until the user picks one.
+  openPaidReceipt(customerId) {
+    const pm = { bulk: true, receiptOnly: true, receipt: true, customerId, date: null, method: '', slip: null };
+    pm.unchecked = this.payBills(pm).map(b => b.key);
+    this.setState({ payModal: pm });
+  }
+  paidReceiptDate(picked) {
+    return picked.map(b => b.paidDate || b.date).sort().pop() || this.isoLocal(new Date());
   }
   openInvoice(id) { const s = this.state.sales.find(x => x.id === id); if (!s) return; this.setState({ invoiceOrder: { customerId: s.customerId, range: 'day', from: s.date, to: s.date } }); }
   openInvoiceRange(customerId, from, to, range) { this.setState({ invoiceOrder: { customerId, range: range || 'custom', from, to } }); }
@@ -3540,8 +3596,12 @@ class Component extends DCLogic {
     const cust = this.state.customers.find(c => c.id === custId) || {};
     const { items, base, vat, grand } = this.docAmounts(rows, false);
     const from = rows[0].date, to = rows[rows.length - 1].date;
+    // Receipt-only (bills paid earlier): nothing gets settled — issue_receipt
+    // only touches unpaid rows and records none as settled, so cancelling this
+    // receipt later won't re-open those debts (migration-receipt-paid-bills.sql).
+    const docDate = pm.date || (pm.receiptOnly ? this.paidReceiptDate(picked) : this.isoLocal(new Date()));
     const { data, error } = await supabase.rpc('issue_receipt', {
-      p_doc_date: pm.date, p_from: from, p_to: to,
+      p_doc_date: docDate, p_from: from, p_to: to,
       p_customer_id: custId, p_cust_name: cust.invoiceName || cust.name || '-',
       p_cust_addr: cust.address || '', p_cust_tax_id: (cust.taxId || '').trim(),
       p_base: base, p_vat: vat, p_grand: grand,
@@ -3550,7 +3610,7 @@ class Component extends DCLogic {
     });
     if (error) {
       console.error('issue_receipt (bills) failed', error);
-      window.alert('ออกใบเสร็จไม่สำเร็จ — ยังไม่ได้บันทึกรับเงิน\n(' + error.message + ')');
+      window.alert('ออกใบเสร็จไม่สำเร็จ' + (pm.receiptOnly ? '' : ' — ยังไม่ได้บันทึกรับเงิน') + '\n(' + error.message + ')');
       return;
     }
     // issue_receipt doesn't know about slips — attach it to the settled bills.
@@ -3558,10 +3618,11 @@ class Component extends DCLogic {
       const { error: e2 } = await supabase.from('sales').update({ slip_url: slipPath }).in('id', ids);
       if (e2) console.error('attach slip failed', e2);
     }
-    this.showSaleToast({ title: 'รับชำระ + ออกใบเสร็จ ' + data.doc_no, custName: this.custName(custId), items: picked.length + ' บิล', method: pm.method, totalF: this.fmt(base) });
+    this.showSaleToast({ title: (pm.receiptOnly ? 'ออกใบเสร็จ ' : 'รับชำระ + ออกใบเสร็จ ') + data.doc_no, custName: this.custName(custId), items: picked.length + ' บิล',
+      method: pm.receiptOnly ? rows[0].method : pm.method, totalF: this.fmt(base) });
     this.setState({ payModal: null });
     await this.loadData();
-    this.setState({ invoiceOrder: { customerId: custId, range: 'custom', from, to, docType: 'receipt', docDate: pm.date, invoiceId: data.id } });
+    this.setState({ invoiceOrder: { customerId: custId, range: 'custom', from, to, docType: 'receipt', docDate, invoiceId: data.id } });
   }
   // Sales already settled by an issued ใบเสร็จรับเงิน (REC). Their paid status
   // is owned by that receipt, so it must be reversed by cancelling the receipt

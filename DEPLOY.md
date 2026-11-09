@@ -17,8 +17,8 @@
 6. **New query** อีกครั้ง → วาง [`supabase/migration-invoice-payments.sql`](supabase/migration-invoice-payments.sql) → **Run**
    (ล็อกว่าแต่ละใบครอบ sales แถวไหน เพื่อให้สถานะ "จ่ายแล้ว/ค้าง" คำนวณได้ถูกต้อง)
 
-7. รันต่อทีละไฟล์ตามลำดับ: [`migration-receipt-doctype.sql`](supabase/migration-receipt-doctype.sql) → [`migration-receipt-settle.sql`](supabase/migration-receipt-settle.sql) → [`migration-invoice-guards.sql`](supabase/migration-invoice-guards.sql)
-   (ใบเสร็จรับเงิน + ตัดยอด, และให้ฐานข้อมูลคำนวณยอดเอกสารเอง + กันบิลเดียวถูกออกเอกสารชนิดเดียวกันซ้ำ)
+7. รันต่อทีละไฟล์ตามลำดับ: [`migration-receipt-doctype.sql`](supabase/migration-receipt-doctype.sql) → [`migration-receipt-settle.sql`](supabase/migration-receipt-settle.sql) → [`migration-invoice-guards.sql`](supabase/migration-invoice-guards.sql) → [`migration-receipt-paid-bills.sql`](supabase/migration-receipt-paid-bills.sql)
+   (ใบเสร็จรับเงิน + ตัดยอด, ให้ฐานข้อมูลคำนวณยอดเอกสารเอง + กันบิลเดียวถูกออกเอกสารชนิดเดียวกันซ้ำ, และใบเสร็จย้อนหลังให้บิลที่จ่ายแล้ว)
 
 ขั้นตอนนี้จะสร้าง: ตาราง `employees`, `customers`, `sales`, `expenses`, `factory_expenses`, `profiles`, storage bucket ชื่อ `slips` สำหรับเก็บรูปสลิปโอนเงิน, และ seed ข้อมูลพนักงาน 5 คน + ลูกค้า 16 รายที่มีอยู่แล้วในระบบเดิม
 
