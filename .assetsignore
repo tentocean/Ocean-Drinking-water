@@ -6,3 +6,5 @@
 DEPLOY.md
 wrangler.toml
 supabase
+worker
+mcp-server

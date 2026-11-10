@@ -1,5 +1,17 @@
 name = "oceandrinkingwater"
 compatibility_date = "2024-09-23"
+# Only runs for requests that don't match a static file (i.e. /api/*) — see worker/index.js
+main = "worker/index.js"
 
 [assets]
 directory = "./"
+binding = "ASSETS"
+
+[vars]
+SUPABASE_URL = "https://jfhojgqyrmxbidtbodra.supabase.co"
+# Same public anon key the web page already ships (ระบบจัดการลูกค้าน้ำดื่ม.dc.html) —
+# not a secret; reads go through the same RLS as the app.
+SUPABASE_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpmaG9qZ3F5cm14YmlkdGJvZHJhIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODM5NzMyNjYsImV4cCI6MjA5OTU0OTI2Nn0.TWFgu6cP1ddnrqJm6GVOr_sW5zO7lj-E29VZFMSpzhA"
+
+# Secrets (NOT in this file) — set once with:
+#   npx wrangler secret put EXPORT_API_KEY
