@@ -3059,9 +3059,9 @@ class Component extends DCLogic {
   }
   openInvoicePay(v, pay) {
     if (!pay.unpaidIds.length) return;
-    // Paying a document from the register is the credit-customer flow (DN/BL
-    // then a ใบเสร็จรับเงิน), so the one-receipt option starts ticked here.
-    this.setState({ payModal: { bulk: true, saleIds: pay.unpaidIds, customerId: v.customerId, unchecked: [], receipt: true,
+    // The one-receipt option starts unticked; tick it in the dialog when a
+    // ใบเสร็จรับเงิน is wanted for the picked bills.
+    this.setState({ payModal: { bulk: true, saleIds: pay.unpaidIds, customerId: v.customerId, unchecked: [], receipt: false,
       from: v.from, to: v.to, docNo: v.docNo, date: this.isoLocal(new Date()), method: 'cash', slip: null } });
   }
   async uploadSlip(base64DataUrl, employeeId, hint) {
